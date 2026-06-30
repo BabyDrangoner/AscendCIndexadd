@@ -1324,22 +1324,23 @@ class IndexAddKernel {
         }
       }
 
-#define STORE_I8P4_ACC(P, R, OUTER) \
+#define STORE_I8P4_ACC(P, R) \
       do { \
-        const uint64_t dst = InputOffset((OUTER), (R), 0); \
-        output_i8_gm_.SetValue(dst + 0, static_cast<int8_t>(P##R##0)); \
-        output_i8_gm_.SetValue(dst + 1, static_cast<int8_t>(P##R##1)); \
-        output_i8_gm_.SetValue(dst + 2, static_cast<int8_t>(P##R##2)); \
-        output_i8_gm_.SetValue(dst + 3, static_cast<int8_t>(P##R##3)); \
-        output_i8_gm_.SetValue(dst + 4, static_cast<int8_t>(P##R##4)); \
-        output_i8_gm_.SetValue(dst + 5, static_cast<int8_t>(P##R##5)); \
-        output_i8_gm_.SetValue(dst + 6, static_cast<int8_t>(P##R##6)); \
+        src3.SetValue((R) * 7 + 0, static_cast<int8_t>(P##R##0)); \
+        src3.SetValue((R) * 7 + 1, static_cast<int8_t>(P##R##1)); \
+        src3.SetValue((R) * 7 + 2, static_cast<int8_t>(P##R##2)); \
+        src3.SetValue((R) * 7 + 3, static_cast<int8_t>(P##R##3)); \
+        src3.SetValue((R) * 7 + 4, static_cast<int8_t>(P##R##4)); \
+        src3.SetValue((R) * 7 + 5, static_cast<int8_t>(P##R##5)); \
+        src3.SetValue((R) * 7 + 6, static_cast<int8_t>(P##R##6)); \
       } while (0)
 #define STORE_I8P4_OUTER(P, OUTER) \
       do { \
-        STORE_I8P4_ACC(P, 0, OUTER); STORE_I8P4_ACC(P, 1, OUTER); \
-        STORE_I8P4_ACC(P, 2, OUTER); STORE_I8P4_ACC(P, 3, OUTER); \
-        STORE_I8P4_ACC(P, 4, OUTER); STORE_I8P4_ACC(P, 5, OUTER); \
+        STORE_I8P4_ACC(P, 0); STORE_I8P4_ACC(P, 1); \
+        STORE_I8P4_ACC(P, 2); STORE_I8P4_ACC(P, 3); \
+        STORE_I8P4_ACC(P, 4); STORE_I8P4_ACC(P, 5); \
+        DataCopyPad(output_i8_gm_[InputOffset((OUTER), 0, 0)], src3, rows_copy); \
+        PipeBarrier<PIPE_MTE3>(); \
       } while (0)
       STORE_I8P4_OUTER(a, outer0);
       STORE_I8P4_OUTER(b, outer1);
