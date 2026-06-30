@@ -114,3 +114,15 @@ prof_sum: 1818248.608
 ```
 
 Conclusion: full pass and the best result so far on the lean v95 branch, improving v119 by 116.112us. The gain is still tiny relative to the leaderboard gap, confirming that packed/cache scalar tuning is near its ceiling and the next meaningful attempt needs a cube/matrix-style reduction or another true vectorized segmented reduction.
+
+## v122 case4-cube-lane-prototype
+
+- Change: add an exact int8 Case4 cube prototype guarded by `dtype=int8`, `index=int32`, `ndim=6`, `dim=4`, `axis=6`, `inner=7`, and `index_len=1024`. The path builds a shared onehot `B[1024,16]`, packs one source lane into `A[16,1024]`, computes `A*B -> C[16,16]` with AscendC `Matmul`, writes C to per-block workspace GM, then adds the input lane and stores six axis outputs.
+- Rationale: v121 is scalar-bound; this is the first attempt on the lean branch to move the dominant Case4 segmented reduction into cube math instead of further packing scalar additions.
+- Package: `IndexAdd_v122_cube_lane_proto.zip`
+- SHA256: `97b056948f9b9a7884daa39bb719fc62bcc20cc53f3b799381fb35b312eb46bf`
+- Verification: top-level host/kernel sources and `op_host/index_add_tiling.h` match the zip contents.
+- Submit: 2026-06-30 20:09:11 CST, workId `0000019F186EEB22B015A968C8AC0974`.
+- Monitor status: as of 2026-06-30 20:12:01 CST, `workInfo` shows v122, but `lastCommit`, `resultUrl`, and case details still point to the v121 19:39:58 result. True v122 result not captured yet.
+
+Pending conclusion: if v122 passes and Case4 drops materially, optimize the remaining source-lane packing and B construction. If v122 is `-1us` or unchanged, inspect whether cube-only runtime path executed, whether exact hidden Case4 differs from `index_len=1024`, and whether KFC/split-core matmul registration is required for platform execution.

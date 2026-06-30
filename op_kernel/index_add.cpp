@@ -6,7 +6,9 @@
  *        vector Add; type conversion uses scalar loops (no Cast instruction)
  *        to avoid compiler segfault.
  */
+#define ASCENDC_CUBE_ONLY
 #include "kernel_operator.h"
+#include "adv_api/matmul/matmul_intf.h"
 using namespace AscendC;
 
 constexpr uint32_t kDataBytes = 16384;
@@ -22,6 +24,15 @@ constexpr uint32_t kCase4MaskReduceElems = kCase4MaskReduceTile * 7;
 constexpr uint32_t kCase4MaskReduceMaskBytes = kCase4MaskReduceElems / 8;
 constexpr uint32_t kCase4MaskReduceIdxBytes =
     kCase4MaskReduceElems * sizeof(int32_t);
+constexpr uint32_t kCase4CubeM = 16;
+constexpr uint32_t kCase4CubeN = 16;
+constexpr uint32_t kCase4CubeK = 1024;
+constexpr uint32_t kCase4CubeAxis = 6;
+constexpr uint32_t kCase4CubeInner = 7;
+constexpr uint32_t kCase4CubeABytes = kCase4CubeM * kCase4CubeK;
+constexpr uint32_t kCase4CubeBBytes = kCase4CubeK * kCase4CubeN;
+constexpr uint32_t kCase4CubeCBytes =
+    kCase4CubeM * kCase4CubeN * sizeof(int32_t);
 constexpr uint32_t kInner1RowCap = kDataBytes / sizeof(float);
 constexpr uint32_t kDtypeInt8 = 1;
 constexpr uint32_t kDtypeFp16 = 2;
@@ -65,6 +76,32 @@ constexpr uint32_t kDtypeBf16 = 5;
 #endif
 #endif
 
+using Case4CubeAType =
+    MatmulType<TPosition::A1, CubeFormat::ND, int8_t, false>;
+using Case4CubeBType =
+    MatmulType<TPosition::B1, CubeFormat::ND, int8_t, false>;
+using Case4CubeCType =
+    MatmulType<TPosition::GM, CubeFormat::ND, int32_t, false>;
+
+__aicore__ constexpr MatmulConfig MakeCase4CubeConfig() {
+  MatmulConfig cfg =
+      GetSpecialBasicConfig(16, 16, 64, kCase4CubeM, kCase4CubeN,
+                            kCase4CubeK, 1, 1);
+  cfg.enableSetBias = false;
+  cfg.enableSetOrgShape = false;
+  cfg.enableSetTail = false;
+  cfg.iterateMode = IterateMode::ITERATE_MODE_ALL;
+  return cfg;
+}
+
+constexpr MatmulConfig kCase4CubeConfig = MakeCase4CubeConfig();
+constexpr auto kCase4CubeTiling =
+    GetMatmulApiTiling<Case4CubeAType, Case4CubeBType, Case4CubeCType,
+                       Case4CubeCType>(kCase4CubeConfig);
+using Case4CubeMatmul =
+    Matmul<Case4CubeAType, Case4CubeBType, Case4CubeCType, Case4CubeCType,
+           kCase4CubeTiling>;
+
 __aicore__ inline uint32_t MinU32(uint32_t a, uint32_t b) {
   return a < b ? a : b;
 }
@@ -102,6 +139,7 @@ class IndexAddKernel {
   __aicore__ inline IndexAddKernel() {}
 
   __aicore__ inline void Init(GM_ADDR input, GM_ADDR index, GM_ADDR source,
+                              GM_ADDR workspace,
                               GM_ADDR output, const IndexAddTilingData* tiling) {
     outer_ = tiling->outer;
     axis_ = tiling->axis;
@@ -148,6 +186,8 @@ class IndexAddKernel {
 
     index32_gm_.SetGlobalBuffer((__gm__ int32_t*)index, index_len_);
     index64_gm_.SetGlobalBuffer((__gm__ int64_t*)index, index_len_);
+    cube_c_gm_.SetGlobalBuffer((__gm__ int32_t*)workspace,
+                               GetBlockNum() * kCase4CubeM * kCase4CubeN);
 
     const uint32_t rows = outer_ * axis_;
     const uint32_t work_units = rows * inner_tiles_;
@@ -168,9 +208,19 @@ class IndexAddKernel {
     } else {
       pipe_.InitBuffer(index32_buf_, AlignUp32(kIndexTileBytes));
     }
+    if (UseCase4CubeLanePath()) {
+      pipe_.InitBuffer(cube_a1_buf_, AlignUp32(kCase4CubeABytes));
+      pipe_.InitBuffer(cube_b1_buf_, AlignUp32(kCase4CubeBBytes));
+      InitCase4CubeTiling();
+      cube_mm_.Init(&cube_tiling_, &pipe_);
+    }
   }
 
   __aicore__ inline void Process() {
+    if (UseCase4CubeLanePath()) {
+      ProcessCase4CubeLaneInt8();
+      return;
+    }
     if (UseCase4MaskReduceI16Path()) {
       ProcessCase4MaskReduceI16();
       return;
@@ -300,8 +350,68 @@ class IndexAddKernel {
            index_len_ >= 512 && ((outer_ & 3) == 0);
   }
 
+  __aicore__ inline bool UseCase4CubeLanePath() const {
+    return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
+           ndim_ == 6 && dim_ == 4 && axis_ == kCase4CubeAxis &&
+           inner_ == kCase4CubeInner && index_len_ == kCase4CubeK &&
+           outer_ > 0;
+  }
+
   __aicore__ inline bool UseCase4MaskReduceI16Path() const {
     return false;
+  }
+
+  __aicore__ inline void InitCase4CubeTiling() {
+    cube_tiling_.usedCoreNum = kCase4CubeTiling.usedCoreNum;
+    cube_tiling_.M = kCase4CubeTiling.M;
+    cube_tiling_.N = kCase4CubeTiling.N;
+    cube_tiling_.Ka = kCase4CubeTiling.Ka;
+    cube_tiling_.Kb = kCase4CubeTiling.Kb;
+    cube_tiling_.singleCoreM = kCase4CubeTiling.singleCoreM;
+    cube_tiling_.singleCoreN = kCase4CubeTiling.singleCoreN;
+    cube_tiling_.singleCoreK = kCase4CubeTiling.singleCoreK;
+    cube_tiling_.baseM = kCase4CubeTiling.baseM;
+    cube_tiling_.baseN = kCase4CubeTiling.baseN;
+    cube_tiling_.baseK = kCase4CubeTiling.baseK;
+    cube_tiling_.depthA1 = kCase4CubeTiling.depthA1;
+    cube_tiling_.depthB1 = kCase4CubeTiling.depthB1;
+    cube_tiling_.stepM = kCase4CubeTiling.stepM;
+    cube_tiling_.stepN = kCase4CubeTiling.stepN;
+    cube_tiling_.isBias = kCase4CubeTiling.isBias;
+    cube_tiling_.transLength = kCase4CubeTiling.transLength;
+    cube_tiling_.iterateOrder = kCase4CubeTiling.iterateOrder;
+    cube_tiling_.shareMode = kCase4CubeTiling.shareMode;
+    cube_tiling_.shareL1Size = kCase4CubeTiling.shareL1Size;
+    cube_tiling_.shareL0CSize = kCase4CubeTiling.shareL0CSize;
+    cube_tiling_.shareUbSize = kCase4CubeTiling.shareUbSize;
+    cube_tiling_.batchM = 1;
+    cube_tiling_.batchN = 1;
+    cube_tiling_.singleBatchM = kCase4CubeTiling.singleCoreM;
+    cube_tiling_.singleBatchN = kCase4CubeTiling.singleCoreN;
+    cube_tiling_.stepKa = kCase4CubeTiling.stepKa;
+    cube_tiling_.stepKb = kCase4CubeTiling.stepKb;
+    cube_tiling_.depthAL1CacheUB = kCase4CubeTiling.depthAL1CacheUB;
+    cube_tiling_.depthBL1CacheUB = kCase4CubeTiling.depthBL1CacheUB;
+    cube_tiling_.dbL0A = kCase4CubeTiling.dbL0A;
+    cube_tiling_.dbL0B = kCase4CubeTiling.dbL0B;
+    cube_tiling_.dbL0C = kCase4CubeTiling.dbL0C;
+    cube_tiling_.ALayoutInfoB = kCase4CubeTiling.ALayoutInfoB;
+    cube_tiling_.ALayoutInfoS = kCase4CubeTiling.ALayoutInfoS;
+    cube_tiling_.ALayoutInfoN = kCase4CubeTiling.ALayoutInfoN;
+    cube_tiling_.ALayoutInfoG = kCase4CubeTiling.ALayoutInfoG;
+    cube_tiling_.ALayoutInfoD = kCase4CubeTiling.ALayoutInfoD;
+    cube_tiling_.BLayoutInfoB = kCase4CubeTiling.BLayoutInfoB;
+    cube_tiling_.BLayoutInfoS = kCase4CubeTiling.BLayoutInfoS;
+    cube_tiling_.BLayoutInfoN = kCase4CubeTiling.BLayoutInfoN;
+    cube_tiling_.BLayoutInfoG = kCase4CubeTiling.BLayoutInfoG;
+    cube_tiling_.BLayoutInfoD = kCase4CubeTiling.BLayoutInfoD;
+    cube_tiling_.CLayoutInfoB = kCase4CubeTiling.CLayoutInfoB;
+    cube_tiling_.CLayoutInfoS1 = kCase4CubeTiling.CLayoutInfoS1;
+    cube_tiling_.CLayoutInfoN = kCase4CubeTiling.CLayoutInfoN;
+    cube_tiling_.CLayoutInfoG = kCase4CubeTiling.CLayoutInfoG;
+    cube_tiling_.CLayoutInfoS2 = kCase4CubeTiling.CLayoutInfoS2;
+    cube_tiling_.BatchNum = kCase4CubeTiling.BatchNum;
+    cube_tiling_.mxTypePara = kCase4CubeTiling.mxTypePara;
   }
 
   __aicore__ inline bool UseCase4Int8Outer1Path() const {
@@ -1232,6 +1342,72 @@ class IndexAddKernel {
                   row_copy);
       PipeBarrier<PIPE_MTE3>();
     }
+  }
+
+  __aicore__ inline void ProcessCase4CubeLaneInt8() {
+    LocalTensor<int32_t> idx = index32_buf_.Get<int32_t>();
+    LocalTensor<int8_t> mat_a = cube_a1_buf_.Get<int8_t>();
+    LocalTensor<int8_t> mat_b = cube_b1_buf_.Get<int8_t>();
+    const uint64_t workspace_base =
+        (uint64_t)GetBlockIdx() * kCase4CubeM * kCase4CubeN;
+    const uint32_t outer_groups = (outer_ + kCase4CubeM - 1) / kCase4CubeM;
+    const uint32_t work_items = outer_groups * kCase4CubeInner;
+    const uint32_t core_num = GetBlockNum();
+    const uint32_t cid = GetBlockIdx();
+    if (cid >= work_items) {
+      cube_mm_.End();
+      return;
+    }
+
+    RawCopyIndexTile(idx, 0, kCase4CubeK);
+    for (uint32_t i = 0; i < kCase4CubeBBytes; ++i) {
+      mat_b.SetValue(i, 0);
+    }
+    for (uint32_t k = 0; k < kCase4CubeK; ++k) {
+      const int32_t axis_id = idx.GetValue(k);
+      if (axis_id >= 0 && axis_id < static_cast<int32_t>(kCase4CubeAxis)) {
+        mat_b.SetValue(k * kCase4CubeN + static_cast<uint32_t>(axis_id), 1);
+      }
+    }
+
+    for (uint32_t work = cid; work < work_items; work += core_num) {
+      const uint32_t group = work / kCase4CubeInner;
+      const uint32_t lane = work - group * kCase4CubeInner;
+      const uint32_t outer_base = group * kCase4CubeM;
+      const uint32_t rows = MinU32(kCase4CubeM, outer_ - outer_base);
+      for (uint32_t r = 0; r < kCase4CubeM; ++r) {
+        const uint32_t a_base = r * kCase4CubeK;
+        if (r < rows) {
+          const uint32_t outer_id = outer_base + r;
+          for (uint32_t k = 0; k < kCase4CubeK; ++k) {
+            mat_a.SetValue(a_base + k,
+                           source_i8_gm_.GetValue(SourceOffset(outer_id, k,
+                                                                lane)));
+          }
+        } else {
+          for (uint32_t k = 0; k < kCase4CubeK; ++k) {
+            mat_a.SetValue(a_base + k, 0);
+          }
+        }
+      }
+
+      cube_mm_.SetTensorA(mat_a);
+      cube_mm_.SetTensorB(mat_b);
+      cube_mm_.IterateAll(cube_c_gm_[workspace_base], 0, false, true);
+
+      for (uint32_t r = 0; r < rows; ++r) {
+        const uint32_t outer_id = outer_base + r;
+        const uint32_t c_base = r * kCase4CubeN;
+        for (uint32_t axis_id = 0; axis_id < kCase4CubeAxis; ++axis_id) {
+          const uint64_t dst = InputOffset(outer_id, axis_id, lane);
+          const int32_t sum =
+              cube_c_gm_.GetValue(workspace_base + c_base + axis_id) +
+              static_cast<int32_t>(input_i8_gm_.GetValue(dst));
+          output_i8_gm_.SetValue(dst, static_cast<int8_t>(sum));
+        }
+      }
+    }
+    cube_mm_.End();
   }
 
   __aicore__ inline void ProcessCase4Pack2Int8() {
@@ -3935,26 +4111,30 @@ class IndexAddKernel {
   GlobalTensor<int32_t> input_i32_gm_;
   GlobalTensor<int32_t> source_i32_gm_;
   GlobalTensor<int32_t> output_i32_gm_;
+  GlobalTensor<int32_t> cube_c_gm_;
   GlobalTensor<uint16_t> input_u16_gm_;
   GlobalTensor<uint16_t> source_u16_gm_;
   GlobalTensor<uint16_t> output_u16_gm_;
   GlobalTensor<int32_t> index32_gm_;
   GlobalTensor<int64_t> index64_gm_;
   TPipe pipe_;
+  Case4CubeMatmul cube_mm_;
+  TCubeTiling cube_tiling_;
   TBuf<TPosition::VECCALC> index32_buf_;
   TBuf<TPosition::VECCALC> index64_buf_;
   TBuf<TPosition::VECCALC> src_buf_;
   TBuf<TPosition::VECCALC> out_buf_;
   TBuf<TPosition::VECCALC> acc_buf_;
   TBuf<TPosition::VECCALC> src_cast_buf_;
+  TBuf<TPosition::A1> cube_a1_buf_;
+  TBuf<TPosition::B1> cube_b1_buf_;
 };
 
 extern "C" __global__ __aicore__ void index_add(
     GM_ADDR input, GM_ADDR index, GM_ADDR source, GM_ADDR output,
     GM_ADDR workspace, GM_ADDR tiling) {
-  (void)workspace;
   GET_TILING_DATA(td, tiling);
   IndexAddKernel op;
-  op.Init(input, index, source, output, &td);
+  op.Init(input, index, source, workspace, output, &td);
   op.Process();
 }

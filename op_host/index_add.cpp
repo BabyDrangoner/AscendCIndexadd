@@ -257,7 +257,10 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
   context->SetBlockDim(block_dim);
 
   size_t* workspace = context->GetWorkspaceSizes(1);
-  workspace[0] = 0;
+  workspace[0] = use_case4_i8_outer1
+                     ? static_cast<size_t>(block_dim) * 16 * 16 *
+                           sizeof(int32_t)
+                     : 0;
 
   tiling.SaveToBuffer(context->GetRawTilingData()->GetData(),
                       context->GetRawTilingData()->GetCapacity());
