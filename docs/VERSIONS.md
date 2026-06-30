@@ -114,3 +114,21 @@ prof_sum: 1818248.608
 ```
 
 Conclusion: full pass and the best result so far on the lean v95 branch, improving v119 by 116.112us. The gain is still tiny relative to the leaderboard gap, confirming that packed/cache scalar tuning is near its ceiling and the next meaningful attempt needs a cube/matrix-style reduction or another true vectorized segmented reduction.
+
+## v122 case4-cube-lane-prototype
+
+- Change: attempted an exact int8 Case4 cube-lane prototype with AscendC `Matmul` and per-block GM workspace.
+- Package: `IndexAdd_v122_cube_lane_proto.zip`
+- SHA256: `97b056948f9b9a7884daa39bb719fc62bcc20cc53f3b799381fb35b312eb46bf`
+- Submit: 2026-06-30 20:09:11 CST, workId `0000019F186EEB22B015A968C8AC0974`.
+- Official result:
+
+```text
+Case1: Run failed
+Case2: Run failed
+Case3: Run failed
+Case4: Run failed
+Case5: Run failed
+```
+
+Conclusion: invalid candidate. The failure affected every case, which points to the `ASCENDC_CUBE_ONLY`/Matmul integration changing the runtime channel or binary shape globally rather than a narrow Case4 arithmetic bug. The v123 dense-GM-A matmul draft is preserved in git stash, but do not submit it until cube registration is isolated from the normal AIV paths.
