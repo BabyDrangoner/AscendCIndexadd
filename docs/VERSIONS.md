@@ -263,4 +263,14 @@ Conclusion: full pass, but still worse than v95 by 83456.0us. Packed byte accumu
 - Package: `IndexAdd_v111_pack4_pos_packed16k.zip`
 - SHA256: `241815b55768b656b3fccddfdbf57e67c8b2d94dc616b00b06518ae8bc1b12a0`
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`a388d2d137151a2e7782c879900c042a468d339428a5f7bf834922f777878388`).
-- Status: built; next submit candidate.
+- Submit: 2026-06-30 16:59:37, workId `0000019F17C15B62B0214B3CA1A2A016`.
+- Status: submitted; waiting for official result.
+
+## v112 pack4-block8
+
+- Change: add an exact-shape Case4 int8 Pack4Block8 path for `index_len == 1024`. Each core caches the shared int32 index as uint8 once, copies each four-row source slab once, then decodes eight 7-byte rows from seven uint64 loads instead of calling the generic unaligned packed loader for every row.
+- Rationale: v111 removes repeated index classification but turns source access into position-list gathers. This candidate keeps source access sequential while reducing packed-load scalar overhead and per-group index GM copies.
+- Package: `IndexAdd_v112_pack4_block8.zip`
+- SHA256: `1c67a869d91372b6fd20ffc85249904553ba6518dc290eb078c0a53557401f8e`
+- Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`b3c9e429089b899de1aa68b99d40b674e351a8c17b573be7b1a3bf6dbc4dca19`).
+- Status: built; submit after v111 result is captured.
