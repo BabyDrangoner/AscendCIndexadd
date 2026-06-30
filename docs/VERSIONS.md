@@ -205,3 +205,12 @@ Conclusion: full pass, but worse than v95 by 172756.656us and worse than v102 by
 - SHA256: `f1882e6b434166ab1626a5fbca8a39d541c6eb81b4ece1f5abd96c17afaa7306`
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`c54eaeb727580f50cca22fe9c47fe312b362252a36a828d44040d00cf0f753d7`).
 - Status: built; submit after v106 result is captured.
+
+## v108 pack4-src20k
+
+- Change: keep the v106 Pack4-priority dispatch but increase the Pack4 source tile to 20KB.
+- Rationale: parameter sweep between the v95 16KB best-known point and the slower v99 32KB point; 20KB may reduce tile-loop count without the full UB pressure of 32KB.
+- Package: `IndexAdd_v108_pack4_src20k.zip`
+- SHA256: `790455b055b61070c93961550e8306ce7ca81a23f3bc0ebb9f187d78605474be`
+- Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`cdfa893495c3864e49309116d00ed594a2432afe2cf3fcd307ca10bb8ec68625`).
+- Status: built; submit after v106/v107 trend is known.
