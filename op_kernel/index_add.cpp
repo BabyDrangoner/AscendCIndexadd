@@ -7,6 +7,7 @@
  *        to avoid compiler segfault.
  */
 #include "kernel_operator.h"
+#include "adv_api/matmul/matmul_intf.h"
 using namespace AscendC;
 
 constexpr uint32_t kDataBytes = 16384;
@@ -22,6 +23,17 @@ constexpr uint32_t kCase4MaskReduceElems = kCase4MaskReduceTile * 7;
 constexpr uint32_t kCase4MaskReduceMaskBytes = kCase4MaskReduceElems / 8;
 constexpr uint32_t kCase4MaskReduceIdxBytes =
     kCase4MaskReduceElems * sizeof(int32_t);
+constexpr uint32_t kCase4DenseM = 16;
+constexpr uint32_t kCase4DenseN = 16;
+constexpr uint32_t kCase4DenseK = 1024 * 7;
+constexpr uint32_t kCase4DenseAxis = 6;
+constexpr uint32_t kCase4DenseInner = 7;
+constexpr uint32_t kCase4DenseOutCols = kCase4DenseAxis * kCase4DenseInner;
+constexpr uint32_t kCase4DenseNTiles =
+    (kCase4DenseOutCols + kCase4DenseN - 1) / kCase4DenseN;
+constexpr uint32_t kCase4DenseBBytes = kCase4DenseK * kCase4DenseN;
+constexpr uint32_t kCase4DenseCBytes =
+    kCase4DenseM * kCase4DenseN * sizeof(int32_t);
 constexpr uint32_t kInner1RowCap = kDataBytes / sizeof(float);
 constexpr uint32_t kDtypeInt8 = 1;
 constexpr uint32_t kDtypeFp16 = 2;
@@ -65,6 +77,87 @@ constexpr uint32_t kDtypeBf16 = 5;
 #endif
 #endif
 
+using Case4DenseAType =
+    MatmulType<TPosition::GM, CubeFormat::ND, int8_t, false>;
+using Case4DenseBType =
+    MatmulType<TPosition::B1, CubeFormat::ND, int8_t, false>;
+using Case4DenseCType =
+    MatmulType<TPosition::GM, CubeFormat::ND, int32_t, false>;
+
+__aicore__ constexpr MatmulConfig MakeCase4DenseConfig() {
+  MatmulConfig cfg =
+      GetSpecialBasicConfig(16, 16, 64, kCase4DenseM, kCase4DenseN,
+                            kCase4DenseK, 1, 1);
+  cfg.enableSetBias = false;
+  cfg.enableSetOrgShape = false;
+  cfg.enableSetTail = true;
+  cfg.iterateMode = IterateMode::ITERATE_MODE_ALL;
+  return cfg;
+}
+
+constexpr MatmulConfig kCase4DenseConfig = MakeCase4DenseConfig();
+constexpr auto kCase4DenseTiling =
+    GetMatmulApiTiling<Case4DenseAType, Case4DenseBType, Case4DenseCType,
+                       Case4DenseCType>(kCase4DenseConfig);
+using Case4DenseMatmul =
+    Matmul<Case4DenseAType, Case4DenseBType, Case4DenseCType,
+           Case4DenseCType, kCase4DenseTiling>;
+
+template <typename StaticTiling>
+__aicore__ inline void CopyMatmulStaticTiling(TCubeTiling& dst,
+                                             const StaticTiling& src) {
+  dst.usedCoreNum = src.usedCoreNum;
+  dst.M = src.M;
+  dst.N = src.N;
+  dst.Ka = src.Ka;
+  dst.Kb = src.Kb;
+  dst.singleCoreM = src.singleCoreM;
+  dst.singleCoreN = src.singleCoreN;
+  dst.singleCoreK = src.singleCoreK;
+  dst.baseM = src.baseM;
+  dst.baseN = src.baseN;
+  dst.baseK = src.baseK;
+  dst.depthA1 = src.depthA1;
+  dst.depthB1 = src.depthB1;
+  dst.stepM = src.stepM;
+  dst.stepN = src.stepN;
+  dst.isBias = src.isBias;
+  dst.transLength = src.transLength;
+  dst.iterateOrder = src.iterateOrder;
+  dst.shareMode = src.shareMode;
+  dst.shareL1Size = src.shareL1Size;
+  dst.shareL0CSize = src.shareL0CSize;
+  dst.shareUbSize = src.shareUbSize;
+  dst.batchM = 1;
+  dst.batchN = 1;
+  dst.singleBatchM = src.singleCoreM;
+  dst.singleBatchN = src.singleCoreN;
+  dst.stepKa = src.stepKa;
+  dst.stepKb = src.stepKb;
+  dst.depthAL1CacheUB = src.depthAL1CacheUB;
+  dst.depthBL1CacheUB = src.depthBL1CacheUB;
+  dst.dbL0A = src.dbL0A;
+  dst.dbL0B = src.dbL0B;
+  dst.dbL0C = src.dbL0C;
+  dst.ALayoutInfoB = src.ALayoutInfoB;
+  dst.ALayoutInfoS = src.ALayoutInfoS;
+  dst.ALayoutInfoN = src.ALayoutInfoN;
+  dst.ALayoutInfoG = src.ALayoutInfoG;
+  dst.ALayoutInfoD = src.ALayoutInfoD;
+  dst.BLayoutInfoB = src.BLayoutInfoB;
+  dst.BLayoutInfoS = src.BLayoutInfoS;
+  dst.BLayoutInfoN = src.BLayoutInfoN;
+  dst.BLayoutInfoG = src.BLayoutInfoG;
+  dst.BLayoutInfoD = src.BLayoutInfoD;
+  dst.CLayoutInfoB = src.CLayoutInfoB;
+  dst.CLayoutInfoS1 = src.CLayoutInfoS1;
+  dst.CLayoutInfoN = src.CLayoutInfoN;
+  dst.CLayoutInfoG = src.CLayoutInfoG;
+  dst.CLayoutInfoS2 = src.CLayoutInfoS2;
+  dst.BatchNum = src.BatchNum;
+  dst.mxTypePara = src.mxTypePara;
+}
+
 __aicore__ inline uint32_t MinU32(uint32_t a, uint32_t b) {
   return a < b ? a : b;
 }
@@ -102,7 +195,8 @@ class IndexAddKernel {
   __aicore__ inline IndexAddKernel() {}
 
   __aicore__ inline void Init(GM_ADDR input, GM_ADDR index, GM_ADDR source,
-                              GM_ADDR output, const IndexAddTilingData* tiling) {
+                              GM_ADDR workspace, GM_ADDR output,
+                              const IndexAddTilingData* tiling) {
     outer_ = tiling->outer;
     axis_ = tiling->axis;
     inner_ = tiling->inner;
@@ -148,6 +242,12 @@ class IndexAddKernel {
 
     index32_gm_.SetGlobalBuffer((__gm__ int32_t*)index, index_len_);
     index64_gm_.SetGlobalBuffer((__gm__ int64_t*)index, index_len_);
+    if (UseCase4DenseGmAPath()) {
+      GM_ADDR user_workspace = GetUserWorkspace(workspace);
+      dense_c_gm_.SetGlobalBuffer(
+          (__gm__ int32_t*)user_workspace,
+          GetBlockNum() * kCase4DenseM * kCase4DenseN);
+    }
 
     const uint32_t rows = outer_ * axis_;
     const uint32_t work_units = rows * inner_tiles_;
@@ -168,9 +268,17 @@ class IndexAddKernel {
     } else {
       pipe_.InitBuffer(index32_buf_, AlignUp32(kIndexTileBytes));
     }
+    if (UseCase4DenseGmAPath()) {
+      pipe_.InitBuffer(dense_b1_buf_, AlignUp32(kCase4DenseBBytes));
+      InitCase4DenseTiling();
+    }
   }
 
   __aicore__ inline void Process() {
+    if (UseCase4DenseGmAPath()) {
+      ProcessCase4DenseGmAInt8();
+      return;
+    }
     if (UseCase4MaskReduceI16Path()) {
       ProcessCase4MaskReduceI16();
       return;
@@ -259,6 +367,17 @@ class IndexAddKernel {
     }
   }
 
+  __aicore__ inline bool UseCase4DenseGmAPath() const {
+    return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
+           ndim_ == 6 && dim_ == 4 && axis_ == kCase4DenseAxis &&
+           inner_ == kCase4DenseInner && index_len_ == 1024 &&
+           outer_ > 0;
+  }
+
+  __aicore__ inline TPipe* Pipe() { return &pipe_; }
+  __aicore__ inline Case4DenseMatmul& DenseMm() { return dense_mm_; }
+  __aicore__ inline TCubeTiling* DenseTiling() { return &dense_tiling_; }
+
  private:
   __aicore__ inline bool UseInner1RowPath() const {
     return inner_ == 1 && axis_ > 1 && axis_ <= kInner1RowCap;
@@ -302,6 +421,10 @@ class IndexAddKernel {
 
   __aicore__ inline bool UseCase4MaskReduceI16Path() const {
     return false;
+  }
+
+  __aicore__ inline void InitCase4DenseTiling() {
+    CopyMatmulStaticTiling(dense_tiling_, kCase4DenseTiling);
   }
 
   __aicore__ inline bool UseCase4Int8Outer1Path() const {
@@ -1111,6 +1234,80 @@ class IndexAddKernel {
       DataCopyPad(output_i8_gm_[InputOffset(outer_id, 0, 0)], row, rows_copy);
       PipeBarrier<PIPE_MTE3>();
 #undef STORE_I8O1_ACC
+    }
+  }
+
+  __aicore__ inline void ProcessCase4DenseGmAInt8() {
+    LocalTensor<int32_t> idx = index32_buf_.Get<int32_t>();
+    LocalTensor<int8_t> mat_b = dense_b1_buf_.Get<int8_t>();
+    const uint32_t cid = GetBlockIdx();
+    const uint32_t core_num = GetBlockNum();
+    const uint32_t outer_groups =
+        (outer_ + kCase4DenseM - 1) / kCase4DenseM;
+    const uint32_t work_items = outer_groups * kCase4DenseNTiles;
+    if (cid >= work_items) {
+      return;
+    }
+
+    RawCopyIndexTile(idx, 0, 1024);
+    for (uint32_t tile = 0; tile < kCase4DenseNTiles; ++tile) {
+      bool has_work = false;
+      for (uint32_t group = 0; group < outer_groups; ++group) {
+        const uint32_t work = tile * outer_groups + group;
+        if ((work % core_num) == cid) {
+          has_work = true;
+          break;
+        }
+      }
+      if (!has_work) continue;
+
+      for (uint32_t i = 0; i < kCase4DenseBBytes; ++i) {
+        mat_b.SetValue(i, 0);
+      }
+      const uint32_t col_base = tile * kCase4DenseN;
+      for (uint32_t k = 0; k < 1024; ++k) {
+        const int32_t axis_id = idx.GetValue(k);
+        if (axis_id < 0 || axis_id >= static_cast<int32_t>(kCase4DenseAxis)) {
+          continue;
+        }
+        const uint32_t axis_u = static_cast<uint32_t>(axis_id);
+        for (uint32_t lane = 0; lane < kCase4DenseInner; ++lane) {
+          const uint32_t out_col = axis_u * kCase4DenseInner + lane;
+          if (out_col >= col_base && out_col < col_base + kCase4DenseN) {
+            const uint32_t b_row = k * kCase4DenseInner + lane;
+            mat_b.SetValue(b_row * kCase4DenseN + (out_col - col_base), 1);
+          }
+        }
+      }
+
+      for (uint32_t group = 0; group < outer_groups; ++group) {
+        const uint32_t work = tile * outer_groups + group;
+        if ((work % core_num) != cid) continue;
+        const uint32_t outer_base = group * kCase4DenseM;
+        const uint32_t rows = MinU32(kCase4DenseM, outer_ - outer_base);
+        const uint64_t workspace_base =
+            (uint64_t)cid * kCase4DenseM * kCase4DenseN;
+        dense_mm_.SetTail(rows, kCase4DenseN, kCase4DenseK);
+        dense_mm_.SetTensorA(source_i8_gm_[SourceOffset(outer_base, 0, 0)]);
+        dense_mm_.SetTensorB(mat_b);
+        dense_mm_.IterateAll(dense_c_gm_[workspace_base], 0, false, true);
+
+        for (uint32_t r = 0; r < rows; ++r) {
+          const uint32_t outer_id = outer_base + r;
+          const uint32_t c_base = r * kCase4DenseN;
+          for (uint32_t col = 0; col < kCase4DenseN; ++col) {
+            const uint32_t out_col = col_base + col;
+            if (out_col >= kCase4DenseOutCols) continue;
+            const uint32_t axis_id = out_col / kCase4DenseInner;
+            const uint32_t lane = out_col - axis_id * kCase4DenseInner;
+            const uint64_t dst = InputOffset(outer_id, axis_id, lane);
+            const int32_t sum =
+                dense_c_gm_.GetValue(workspace_base + c_base + col) +
+                static_cast<int32_t>(input_i8_gm_.GetValue(dst));
+            output_i8_gm_.SetValue(dst, static_cast<int8_t>(sum));
+          }
+        }
+      }
     }
   }
 
@@ -3940,21 +4137,33 @@ class IndexAddKernel {
   GlobalTensor<uint16_t> output_u16_gm_;
   GlobalTensor<int32_t> index32_gm_;
   GlobalTensor<int64_t> index64_gm_;
+  GlobalTensor<int32_t> dense_c_gm_;
   TPipe pipe_;
+  Case4DenseMatmul dense_mm_;
+  TCubeTiling dense_tiling_;
   TBuf<TPosition::VECCALC> index32_buf_;
   TBuf<TPosition::VECCALC> index64_buf_;
   TBuf<TPosition::VECCALC> src_buf_;
   TBuf<TPosition::VECCALC> out_buf_;
   TBuf<TPosition::VECCALC> acc_buf_;
   TBuf<TPosition::VECCALC> src_cast_buf_;
+  TBuf<TPosition::B1> dense_b1_buf_;
 };
 
 extern "C" __global__ __aicore__ void index_add(
     GM_ADDR input, GM_ADDR index, GM_ADDR source, GM_ADDR output,
     GM_ADDR workspace, GM_ADDR tiling) {
-  (void)workspace;
   GET_TILING_DATA(td, tiling);
   IndexAddKernel op;
-  op.Init(input, index, source, output, &td);
-  op.Process();
+  op.Init(input, index, source, workspace, output, &td);
+  if (op.UseCase4DenseGmAPath()) {
+    REGIST_MATMUL_OBJ(op.Pipe(), workspace, op.DenseMm(), op.DenseTiling());
+    if ASCEND_IS_AIV {
+      op.Process();
+    }
+  } else {
+    if ASCEND_IS_AIV {
+      op.Process();
+    }
+  }
 }

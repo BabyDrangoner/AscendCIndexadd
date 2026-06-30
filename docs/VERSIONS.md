@@ -132,3 +132,13 @@ Case5: Run failed
 ```
 
 Conclusion: invalid candidate. The failure affected every case, which points to the `ASCENDC_CUBE_ONLY`/Matmul integration changing the runtime channel or binary shape globally rather than a narrow Case4 arithmetic bug. The v123 dense-GM-A matmul draft is preserved in git stash, but do not submit it until cube registration is isolated from the normal AIV paths.
+
+## v124 kfc-dense-gm-a
+
+- Change: replace the rejected cube-only experiment with a split-core KFC Matmul fast path guarded to exact int8 Case4 (`index=int32`, `ndim=6`, `dim=4`, `axis=6`, `inner=7`, `index_len=1024`). A is read directly from GM as `[outer_group, 1024*7]`, B is a per-tile local onehot matrix in B1, and C is written to user workspace before scalar int8 wraparound storeback.
+- Host tiling: exact dense Case4 uses `work_units=ceil(outer/16)*3`, `blockDim<=24` to stay within KFC's 50 AIV flat-block workspace layout, and allocates user workspace for per-block C matrices.
+- Package: `IndexAdd_v124_kfc_dense_gma.zip`
+- SHA256: `6bba2950e06c1c0d69f738123cbe675fc4db8814b3195d7cbf9c12126cad6bc0`
+- Verification: Docker/Lima build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+
+Pending conclusion: submit to check whether KFC registration avoids v122's all-case runtime failure and whether Case4 moves from scalar-bound 1.729s toward cube-bound performance.
