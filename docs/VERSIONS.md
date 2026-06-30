@@ -198,3 +198,12 @@ Conclusion: invalid candidate. Because every case failed, including non-Case4 sh
 - SHA256: `2d6b54f01e2488c564469599698c6e1d08311390801be855ff6f758c781fe50a`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: not submitted yet. Submit only if v128 result indicates workspace-related failure.
+
+## v130 kfc-workspace-all-m128
+
+- Change: keep v129's always-register/workspace-all structure and increase the dense Case4 Matmul M tile to 128 rows.
+- Rationale: if KFC lifecycle is fixed, M=128 cuts the number of Matmul commands to one quarter of v126 and half of v127/v129. This may reduce client/server scheduling overhead, but could be worse if the larger single-core M tile loses cube efficiency.
+- Package: `IndexAdd_v130_kfc_workspace_all_m128.zip`
+- SHA256: `e04898ddbb312f44a6499acaae4042a14b3565a1a45eaa6bd42ca755e06ef768`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: not submitted yet. Submit only after v128/v129 establish that KFC path is viable.
