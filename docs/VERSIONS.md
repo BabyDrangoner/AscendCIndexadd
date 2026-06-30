@@ -324,7 +324,18 @@ Conclusion: full pass but still worse than v95 by 83250.736us. Caching the share
 - SHA256: `2f986b8b1a444360ad5459c50e6d2cea811c2b1a00fb42c12b3a355473135922`
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`03ae775393ecd5d595f686b8a9162d8c624a7afbf969334413730dcae139273a`).
 - Submit: 2026-06-30 17:34:23, workId `0000019F17E1372FB017FCF7AA1E099F`.
-- Status: submitted; waiting for official result.
+- Official result:
+
+```text
+Case1: Pass, Result: 39.712
+Case2: Pass, Result: 12794.46
+Case3: Pass, Result: 60793.256
+Case4: Pass, Result: 1812409.78
+Case5: Pass, Result: 15630.456
+prof_sum: 1901667.664
+```
+
+Conclusion: full pass. Case4 improves v113 by 200.292us, so the fp32 mask-reduce path likely hits at least part of the Case4 workload, but total time is 105.396us worse than v113 because the other cases regress/noise upward. The onehot mask/tree-reduce idea is correct enough to test scheduling, but it is not yet an order-of-magnitude Case4 fix.
 
 ## v116 case4-fp32-maskreduce-b40
 
