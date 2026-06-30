@@ -344,4 +344,5 @@ Conclusion: full pass. Case4 improves v113 by 200.292us, so the fp32 mask-reduce
 - Package: `IndexAdd_v116_case4_fp32_maskreduce_b40.zip`
 - SHA256: `e6381fc8f1938e3d299abb927e660ee5c1b228fcaf5c2f59bfcf1c0ed0c64c16`
 - Verification: top-level host source matches (`52775ae1a3152feabebcb8537931c7b34961dbf755207ece8b2e3d6a99fc286a`); top-level kernel source, run-package embedded kernel source, and local `op_kernel/index_add.cpp` match (`03ae775393ecd5d595f686b8a9162d8c624a7afbf969334413730dcae139273a`).
-- Status: built; submit after v115 result is captured.
+- Submit: 2026-06-30 17:46:19, workId `0000019F17EC232DB014D7A794B39119`.
+- Status: submitted; waiting for official result.
