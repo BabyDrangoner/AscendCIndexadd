@@ -23,7 +23,7 @@ constexpr uint32_t kCase4MaskReduceElems = kCase4MaskReduceTile * 7;
 constexpr uint32_t kCase4MaskReduceMaskBytes = kCase4MaskReduceElems / 8;
 constexpr uint32_t kCase4MaskReduceIdxBytes =
     kCase4MaskReduceElems * sizeof(int32_t);
-constexpr uint32_t kCase4DenseM = 16;
+constexpr uint32_t kCase4DenseM = 32;
 constexpr uint32_t kCase4DenseN = 16;
 constexpr uint32_t kCase4DenseK = 1024 * 7;
 constexpr uint32_t kCase4DenseAxis = 6;
