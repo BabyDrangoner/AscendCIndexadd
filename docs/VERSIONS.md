@@ -93,3 +93,12 @@ prof_sum: 1901590.296
 ```
 
 Conclusion: full pass but falls back into the 1.901s band. The half-select plus int16-reduce path is still dominated by six full bucket scans and cast overhead; stop pursuing onehot mask-reduce for int8 Case4 unless the source layout can be changed to avoid rescanning each bucket.
+
+## v121 pack4-packed-cached
+
+- Change: disable the v120 mask-reduce dispatch and retest Case4 on the lean v95 branch with a packed int8 Pack4 hot loop. Each 7-byte int8 row is loaded into one `uint64_t`, accumulated with byte-wise wraparound, and written back through the existing 42-byte row `DataCopyPad`. The shared int32 index tile is cached once per core when it fits in UB.
+- Rationale: profiling points to scalar execution, not GM bandwidth. This candidate reduces the per-index per-four-outer source lane work from 28 scalar byte loads/adds to four packed row loads/adds while preserving the stable v95 outer grouping and output path.
+- Package: `IndexAdd_v121_pack4_packed_cached.zip`
+- SHA256: `47af783c8f9ad945af7b664a712c7c8884a9bbf2e26fff71e245fb53f05a6f93`
+- Verification: top-level host source matches; top-level kernel source, run-package embedded kernel source, and local `op_kernel/index_add.cpp` match.
+- Status: built 2026-06-30 19:38:58 CST; submit next.
