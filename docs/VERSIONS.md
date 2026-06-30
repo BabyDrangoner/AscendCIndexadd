@@ -323,4 +323,5 @@ Conclusion: full pass but still worse than v95 by 83250.736us. Caching the share
 - Package: `IndexAdd_v115_case4_fp32_maskreduce.zip`
 - SHA256: `2f986b8b1a444360ad5459c50e6d2cea811c2b1a00fb42c12b3a355473135922`
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`03ae775393ecd5d595f686b8a9162d8c624a7afbf969334413730dcae139273a`).
-- Status: built; submit next to see whether hidden Case4 includes the fp32 exact shape.
+- Submit: 2026-06-30 17:34:23, workId `0000019F17E1372FB017FCF7AA1E099F`.
+- Status: submitted; waiting for official result.
