@@ -387,4 +387,15 @@ Conclusion: full pass and slightly better than v115/v116, but it did not recover
 - SHA256: `bc23bf6f46abc45d618702eb3c83efbe44d33b7ffdc1538ac1585c4580d12f68`
 - Verification: top-level host source matches (`52775ae1a3152feabebcb8537931c7b34961dbf755207ece8b2e3d6a99fc286a`); top-level kernel source, run-package embedded kernel source, and local `op_kernel/index_add.cpp` match (`428cae49bb460988c06a827b1cdc289edd76f8b5f72bc295f1104b66c16a9727`).
 - Submit: 2026-06-30 18:42:08, workId `0000019F181F3EDCB015A7BF7B3A7280`.
-- Status: submitted; waiting for official result.
+- Official result:
+
+```text
+Case1: Pass, Result: 37.672
+Case2: Pass, Result: 12607.032
+Case3: Pass, Result: 60762.316
+Case4: Pass, Result: 1812540.132
+Case5: Pass, Result: 15628.936
+prof_sum: 1901576.088
+```
+
+Conclusion: full pass but slower than v117 by 189.756us. The int8 float mask-reduce path removes some scalar scatter structure, but the extra int8->half->float casts and six full bucket scans per outer outweigh the vector reduction benefit.
