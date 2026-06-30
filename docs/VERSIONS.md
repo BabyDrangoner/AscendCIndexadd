@@ -188,4 +188,4 @@ Conclusion: invalid candidate. Because every case failed, including non-Case4 sh
 - Package: `IndexAdd_v128_kfc_always_register_m64.zip`
 - SHA256: `78b651db31e0811a4e89cc09b32820f65c0a5ec536ceab99f5cec4b7cb136a23`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
-- Submit: pending.
+- Submit: 2026-06-30 21:10:34 CST, workId `0000019F18A72258B015AC545AD243F4`.
