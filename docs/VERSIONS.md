@@ -140,3 +140,11 @@ Conclusion: full pass, but worse than v95 by 83090.804us. The 32KB Pack4 tile hu
 - Package: `IndexAdd_v102_pack3_src16k.zip`
 - SHA256: `49f9137d447bc3a7d1d63c17b2ca0721d355b82a3d3e4ca169921e748213f6a3`
 - Status: built; submit after Pack3 32KB candidate if needed.
+
+## v103 class3-tile1024
+
+- Change: add a Case4 int8 Class3 path before Pack3. Each core owns up to three outer rows, classifies a 1024-entry index tile into six position lists, then accumulates source rows by class to remove the inner source-loop switch.
+- Rationale: v99 showed larger source tiles hurt. This instead tests whether reducing branch pressure in the hot int8 Case4 loop can beat Pack3/Pack4 while keeping UB usage inside the original 16KB buffers.
+- Package: `IndexAdd_v103_class3_tile1024.zip`
+- SHA256: `82575150c5b1091798b8b636e239b4b44318f62fa32476c026e0c894bd4a9795`
+- Status: built; submit after v102 official result is captured.

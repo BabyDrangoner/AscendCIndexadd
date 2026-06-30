@@ -18,6 +18,7 @@ constexpr uint32_t kGroupRows = 16;
 constexpr uint32_t kWideGroupRows = 32;
 constexpr uint32_t kSmallInnerGroupRows = 256;
 constexpr uint32_t kCase4I8AlignedRows = 32;
+constexpr uint32_t kCase4I8ClassTile = 1024;
 constexpr uint32_t kInner1RowCap = kDataBytes / sizeof(float);
 constexpr uint32_t kDtypeInt8 = 1;
 constexpr uint32_t kDtypeFp16 = 2;
@@ -177,6 +178,14 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
+    if (UseCase4Int8Class3Path()) {
+      if (index_dtype_size_ == 8) {
+        ProcessCase4Class3Int864();
+      } else {
+        ProcessCase4Class3Int832();
+      }
+      return;
+    }
     if (UseCase4Int8Pack3Path()) {
       ProcessCase4Pack3Int8();
       return;
@@ -298,6 +307,13 @@ class IndexAddKernel {
     return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
            ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
            index_len_ >= 512;
+  }
+
+  __aicore__ inline bool UseCase4Int8Class3Path() const {
+    return dtype_mode_ == kDtypeInt8 &&
+           (index_dtype_size_ == 4 || index_dtype_size_ == 8) &&
+           ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
+           index_len_ >= 512 && outer_ >= 3;
   }
 
   __aicore__ inline bool UseCase4Int8Pack4Path() const {
@@ -1021,6 +1037,160 @@ class IndexAddKernel {
       ProcessCase4PairFp32(idx);
     } else {
       ProcessCase4PairInt32(idx);
+    }
+  }
+
+  __aicore__ inline void ProcessCase4Class3Int832() {
+    LocalTensor<int32_t> idx = index32_buf_.Get<int32_t>();
+    ProcessCase4Class3Int8(idx);
+  }
+
+  __aicore__ inline void ProcessCase4Class3Int864() {
+    LocalTensor<int64_t> idx = index64_buf_.Get<int64_t>();
+    ProcessCase4Class3Int8(idx);
+  }
+
+  template <typename IdxT>
+  __aicore__ inline void ProcessCase4Class3Int8(LocalTensor<IdxT>& idx) {
+    LocalTensor<uint16_t> pos = out_buf_.Get<uint16_t>();
+    LocalTensor<int32_t> acc = acc_buf_.Get<int32_t>();
+    LocalTensor<int8_t> src = src_buf_.Get<int8_t>();
+    LocalTensor<int8_t> row = src_cast_buf_.Get<int8_t>();
+    DataCopyPadParams pad{false, 0, 0, 0};
+    DataCopyParams rows_copy{1, 42, 0, 0};
+    const uint32_t tile_cap = MinU32(IndexTileCap(idx), kCase4I8ClassTile);
+    const uint32_t groups = (outer_ + 2) / 3;
+    const uint32_t core_num = GetBlockNum();
+    const uint32_t cid = GetBlockIdx();
+
+    for (uint32_t group = cid; group < groups; group += core_num) {
+      const uint32_t outer0 = group * 3;
+      const uint32_t group_outers = MinU32(3, outer_ - outer0);
+
+      for (uint32_t p = 0; p < group_outers; ++p) {
+        const uint64_t in_base = (uint64_t)(outer0 + p) * 42;
+        const uint32_t acc_base = p * 42;
+        for (uint32_t e = 0; e < 42; ++e) {
+          acc.SetValue(acc_base + e,
+                       static_cast<int32_t>(input_i8_gm_.GetValue(in_base + e)));
+        }
+      }
+
+      for (uint32_t base = 0; base < index_len_; base += tile_cap) {
+        const uint32_t count = MinU32(index_len_ - base, tile_cap);
+        RawCopyIndexTile(idx, base, count);
+
+        uint32_t n0 = 0;
+        uint32_t n1 = 0;
+        uint32_t n2 = 0;
+        uint32_t n3 = 0;
+        uint32_t n4 = 0;
+        uint32_t n5 = 0;
+        for (uint32_t i = 0; i < count; ++i) {
+          switch (static_cast<uint32_t>(idx.GetValue(i))) {
+            case 0:
+              pos.SetValue(0 * kCase4I8ClassTile + n0++,
+                           static_cast<uint16_t>(i));
+              break;
+            case 1:
+              pos.SetValue(1 * kCase4I8ClassTile + n1++,
+                           static_cast<uint16_t>(i));
+              break;
+            case 2:
+              pos.SetValue(2 * kCase4I8ClassTile + n2++,
+                           static_cast<uint16_t>(i));
+              break;
+            case 3:
+              pos.SetValue(3 * kCase4I8ClassTile + n3++,
+                           static_cast<uint16_t>(i));
+              break;
+            case 4:
+              pos.SetValue(4 * kCase4I8ClassTile + n4++,
+                           static_cast<uint16_t>(i));
+              break;
+            case 5:
+              pos.SetValue(5 * kCase4I8ClassTile + n5++,
+                           static_cast<uint16_t>(i));
+              break;
+            default:
+              break;
+          }
+        }
+
+        DataCopyParams src_copy{1, static_cast<uint16_t>(count * 7), 0, 0};
+        for (uint32_t p = 0; p < group_outers; ++p) {
+          DataCopyPad(src, source_i8_gm_[SourceOffset(outer0 + p, base, 0)],
+                      src_copy, pad);
+          PipeBarrier<PIPE_MTE2>();
+          const uint32_t acc_base = p * 42;
+
+#define LOAD_C3_ROW(R) \
+          int32_t c##R##0 = acc.GetValue(acc_base + (R) * 7 + 0); \
+          int32_t c##R##1 = acc.GetValue(acc_base + (R) * 7 + 1); \
+          int32_t c##R##2 = acc.GetValue(acc_base + (R) * 7 + 2); \
+          int32_t c##R##3 = acc.GetValue(acc_base + (R) * 7 + 3); \
+          int32_t c##R##4 = acc.GetValue(acc_base + (R) * 7 + 4); \
+          int32_t c##R##5 = acc.GetValue(acc_base + (R) * 7 + 5); \
+          int32_t c##R##6 = acc.GetValue(acc_base + (R) * 7 + 6)
+          LOAD_C3_ROW(0);
+          LOAD_C3_ROW(1);
+          LOAD_C3_ROW(2);
+          LOAD_C3_ROW(3);
+          LOAD_C3_ROW(4);
+          LOAD_C3_ROW(5);
+#undef LOAD_C3_ROW
+
+#define ADD_C3_POS(R, N) \
+          do { \
+            for (uint32_t t = 0; t < (N); ++t) { \
+              const uint32_t src_off = \
+                  static_cast<uint32_t>(pos.GetValue((R) * kCase4I8ClassTile + t)) * 7; \
+              c##R##0 += static_cast<int32_t>(src.GetValue(src_off + 0)); \
+              c##R##1 += static_cast<int32_t>(src.GetValue(src_off + 1)); \
+              c##R##2 += static_cast<int32_t>(src.GetValue(src_off + 2)); \
+              c##R##3 += static_cast<int32_t>(src.GetValue(src_off + 3)); \
+              c##R##4 += static_cast<int32_t>(src.GetValue(src_off + 4)); \
+              c##R##5 += static_cast<int32_t>(src.GetValue(src_off + 5)); \
+              c##R##6 += static_cast<int32_t>(src.GetValue(src_off + 6)); \
+            } \
+          } while (0)
+          ADD_C3_POS(0, n0);
+          ADD_C3_POS(1, n1);
+          ADD_C3_POS(2, n2);
+          ADD_C3_POS(3, n3);
+          ADD_C3_POS(4, n4);
+          ADD_C3_POS(5, n5);
+#undef ADD_C3_POS
+
+#define STORE_C3_ROW(R) \
+          do { \
+            acc.SetValue(acc_base + (R) * 7 + 0, c##R##0); \
+            acc.SetValue(acc_base + (R) * 7 + 1, c##R##1); \
+            acc.SetValue(acc_base + (R) * 7 + 2, c##R##2); \
+            acc.SetValue(acc_base + (R) * 7 + 3, c##R##3); \
+            acc.SetValue(acc_base + (R) * 7 + 4, c##R##4); \
+            acc.SetValue(acc_base + (R) * 7 + 5, c##R##5); \
+            acc.SetValue(acc_base + (R) * 7 + 6, c##R##6); \
+          } while (0)
+          STORE_C3_ROW(0);
+          STORE_C3_ROW(1);
+          STORE_C3_ROW(2);
+          STORE_C3_ROW(3);
+          STORE_C3_ROW(4);
+          STORE_C3_ROW(5);
+#undef STORE_C3_ROW
+        }
+      }
+
+      for (uint32_t p = 0; p < group_outers; ++p) {
+        const uint32_t acc_base = p * 42;
+        for (uint32_t e = 0; e < 42; ++e) {
+          row.SetValue(e, static_cast<int8_t>(acc.GetValue(acc_base + e)));
+        }
+        DataCopyPad(output_i8_gm_[InputOffset(outer0 + p, 0, 0)], row,
+                    rows_copy);
+        PipeBarrier<PIPE_MTE3>();
+      }
     }
   }
 
