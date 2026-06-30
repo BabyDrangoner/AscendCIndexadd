@@ -192,7 +192,7 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
     work_units = (static_cast<uint64_t>(outer) + row_group - 1) / row_group;
   } else if (use_case4_i8_dense_gma) {
     const uint64_t outer_groups =
-        (static_cast<uint64_t>(outer) + 32 - 1) / 32;
+        (static_cast<uint64_t>(outer) + 64 - 1) / 64;
     work_units = outer_groups * 3;
   } else if (use_case4_i8_outer1) {
     work_units = outer;
@@ -267,7 +267,7 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
   size_t* workspace = context->GetWorkspaceSizes(1);
   workspace[0] = use_case4_i8_dense_gma
                      ? static_cast<size_t>(block_dim) *
-                           (32 * 16 * sizeof(int32_t) +
+                           (64 * 16 * sizeof(int32_t) +
                             1024 * 7 * 16 * sizeof(int8_t))
                      : 0;
 

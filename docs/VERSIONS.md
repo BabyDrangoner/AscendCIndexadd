@@ -160,3 +160,12 @@ Pending conclusion: submit to check whether KFC registration avoids v122's all-c
 - SHA256: `36c1b682f1bdc77439cde2305785f779201dcd61f3285cce1ba0d3000e6e1dd8`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: not submitted yet. Wait for the true v124 result first so the platform result is not overwritten.
+
+## v127 kfc-dense-gm-b-m64
+
+- Change: increase the exact int8 Case4 KFC dense Matmul outer group to 64 rows.
+- Rationale: M=64 halves the KFC command count again versus v126. If cube occupancy remains healthy, this should reduce client scheduling and B-preparation overhead further; if the larger single-core tile hurts cache pressure, v126 should be preferred.
+- Package: `IndexAdd_v127_kfc_dense_gmb_m64.zip`
+- SHA256: `32963265bf75260f5391f9685763f6cdb0e2b0d7becb38dcd72d3723cfc6266b`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: not submitted yet. Wait for the true v124 result first so the platform result is not overwritten.
