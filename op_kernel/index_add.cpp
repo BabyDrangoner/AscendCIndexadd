@@ -1623,13 +1623,13 @@ class IndexAddKernel {
       const uint32_t outer3 = outer0 + 3;
 
 #define DECL_I8P4_CACHED_ACC(P, R) \
-      int32_t P##R##0 = 0; \
-      int32_t P##R##1 = 0; \
-      int32_t P##R##2 = 0; \
-      int32_t P##R##3 = 0; \
-      int32_t P##R##4 = 0; \
-      int32_t P##R##5 = 0; \
-      int32_t P##R##6 = 0
+      uint8_t P##R##0 = 0; \
+      uint8_t P##R##1 = 0; \
+      uint8_t P##R##2 = 0; \
+      uint8_t P##R##3 = 0; \
+      uint8_t P##R##4 = 0; \
+      uint8_t P##R##5 = 0; \
+      uint8_t P##R##6 = 0
       DECL_I8P4_CACHED_ACC(a, 0); DECL_I8P4_CACHED_ACC(a, 1);
       DECL_I8P4_CACHED_ACC(a, 2); DECL_I8P4_CACHED_ACC(a, 3);
       DECL_I8P4_CACHED_ACC(a, 4); DECL_I8P4_CACHED_ACC(a, 5);
@@ -1645,13 +1645,13 @@ class IndexAddKernel {
 #undef DECL_I8P4_CACHED_ACC
 
 #define LOAD_I8P4_CACHED_ACC(P, R) \
-      P##R##0 = static_cast<int32_t>(src0.GetValue((R) * 7 + 0)); \
-      P##R##1 = static_cast<int32_t>(src0.GetValue((R) * 7 + 1)); \
-      P##R##2 = static_cast<int32_t>(src0.GetValue((R) * 7 + 2)); \
-      P##R##3 = static_cast<int32_t>(src0.GetValue((R) * 7 + 3)); \
-      P##R##4 = static_cast<int32_t>(src0.GetValue((R) * 7 + 4)); \
-      P##R##5 = static_cast<int32_t>(src0.GetValue((R) * 7 + 5)); \
-      P##R##6 = static_cast<int32_t>(src0.GetValue((R) * 7 + 6))
+      P##R##0 = static_cast<uint8_t>(src0.GetValue((R) * 7 + 0)); \
+      P##R##1 = static_cast<uint8_t>(src0.GetValue((R) * 7 + 1)); \
+      P##R##2 = static_cast<uint8_t>(src0.GetValue((R) * 7 + 2)); \
+      P##R##3 = static_cast<uint8_t>(src0.GetValue((R) * 7 + 3)); \
+      P##R##4 = static_cast<uint8_t>(src0.GetValue((R) * 7 + 4)); \
+      P##R##5 = static_cast<uint8_t>(src0.GetValue((R) * 7 + 5)); \
+      P##R##6 = static_cast<uint8_t>(src0.GetValue((R) * 7 + 6))
 #define LOAD_I8P4_CACHED_OUTER(P, OUTER) \
       do { \
         DataCopyPad(src0, input_i8_gm_[InputOffset((OUTER), 0, 0)], rows_copy, pad); \
@@ -1681,13 +1681,13 @@ class IndexAddKernel {
         const uint32_t src_off = i * 7;
 #define ADD_I8P4_CACHED_ONE(P, R, BUF) \
         do { \
-          P##R##0 += static_cast<int32_t>(BUF.GetValue(src_off + 0)); \
-          P##R##1 += static_cast<int32_t>(BUF.GetValue(src_off + 1)); \
-          P##R##2 += static_cast<int32_t>(BUF.GetValue(src_off + 2)); \
-          P##R##3 += static_cast<int32_t>(BUF.GetValue(src_off + 3)); \
-          P##R##4 += static_cast<int32_t>(BUF.GetValue(src_off + 4)); \
-          P##R##5 += static_cast<int32_t>(BUF.GetValue(src_off + 5)); \
-          P##R##6 += static_cast<int32_t>(BUF.GetValue(src_off + 6)); \
+          P##R##0 = static_cast<uint8_t>(P##R##0 + static_cast<uint8_t>(BUF.GetValue(src_off + 0))); \
+          P##R##1 = static_cast<uint8_t>(P##R##1 + static_cast<uint8_t>(BUF.GetValue(src_off + 1))); \
+          P##R##2 = static_cast<uint8_t>(P##R##2 + static_cast<uint8_t>(BUF.GetValue(src_off + 2))); \
+          P##R##3 = static_cast<uint8_t>(P##R##3 + static_cast<uint8_t>(BUF.GetValue(src_off + 3))); \
+          P##R##4 = static_cast<uint8_t>(P##R##4 + static_cast<uint8_t>(BUF.GetValue(src_off + 4))); \
+          P##R##5 = static_cast<uint8_t>(P##R##5 + static_cast<uint8_t>(BUF.GetValue(src_off + 5))); \
+          P##R##6 = static_cast<uint8_t>(P##R##6 + static_cast<uint8_t>(BUF.GetValue(src_off + 6))); \
         } while (0)
 #define ADD_I8P4_CACHED_ROW4(R) \
         do { \

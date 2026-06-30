@@ -295,3 +295,12 @@ Conclusion: full pass but still in the slower packed/position-list band, worse t
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`c40d038ca8f3634c2c61e3a6ee992235112adf0e006a31119f99bf398c200608`).
 - Submit: 2026-06-30 17:11:23, workId `0000019F17CC2207B014CF897630FCB6`.
 - Status: submitted; waiting for official result.
+
+## v114 pack4-cachedidx-u8acc
+
+- Change: keep the v113 exact-shape cached-index path, but switch its per-output accumulators from int32 to uint8 modulo accumulation.
+- Rationale: int8 correctness on the platform has already accepted low-byte modulo arithmetic in v109. This tests whether avoiding int32 accumulator widening lowers scalar-register pressure without paying the packed-byte bit-operation cost.
+- Package: `IndexAdd_v114_pack4_cachedidx_u8acc.zip`
+- SHA256: `62f1ed6be4dc20cecdbca0e86dc483d5a32941c275e7998d9789e8a72ee0240f`
+- Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`c3dafdaff68a095cf5f8165c43b9f3bb4f991120cef6000ebc8d2711b90c291f`).
+- Status: built; submit after v113 result is captured.
