@@ -101,4 +101,5 @@ Conclusion: full pass but falls back into the 1.901s band. The half-select plus 
 - Package: `IndexAdd_v121_pack4_packed_cached.zip`
 - SHA256: `47af783c8f9ad945af7b664a712c7c8884a9bbf2e26fff71e245fb53f05a6f93`
 - Verification: top-level host source matches; top-level kernel source, run-package embedded kernel source, and local `op_kernel/index_add.cpp` match.
-- Status: built 2026-06-30 19:38:58 CST; submit next.
+- Submit: 2026-06-30 19:39:58 CST, workId `0000019F185431BBB02149BD9478A0F2`.
+- Status: submitted; awaiting official result.
