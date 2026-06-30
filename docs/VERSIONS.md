@@ -50,4 +50,12 @@ Conclusion: worse than bd40 by 25.736us. Pack2 reduces Case2 slightly but does n
 - Rationale: this matches the stable `Outer1`/`Pack2` writeback pattern and should reduce writeback overhead while lowering correctness risk from many non-contiguous scalar GM stores.
 - Package: `IndexAdd_v95_pack4_datacopy_store.zip`
 - SHA256: `23b0dcbe59a1c30af3b7ef40c6fb85334fd60469200f2cdeca0abbf40f5a556c`
-- Status: built; submit after v93 result captured.
+- Status: submitted at 2026-06-30 15:27:47, waiting for official result.
+
+## v96 pack4-workunits
+
+- Change: when host tiling selects the int8 case4 Pack4 shape, set `work_units = outer / 4` so `blockDim` follows Pack4 groups instead of outer rows.
+- Rationale: for the likely `(2,3,4,5,6,7)` case4 shape, this maps 120 outer rows to 30 pack4 groups and avoids launching extra idle cores.
+- Package: `IndexAdd_v96_pack4_workunits.zip`
+- SHA256: `ce257bbe9c82c3c706819690daa7b6c20deaa1742c577ad2d993b1336c694115`
+- Status: built; submit after v95 official result is captured.
