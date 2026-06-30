@@ -69,4 +69,5 @@ Conclusion: worse than bd40 by 25.736us. Pack2 reduces Case2 slightly but does n
 - Package: `IndexAdd_v120_case4_i16_maskreduce.zip`
 - SHA256: `9a8c7e2eed8eeadeb14874375b34372e39810c03946f7e95a8f2bdaf9d051013`
 - Verification: top-level host source matches (`22eb60d19fbc9c6278b481f2cf04a2423149e5b8b384ff7cc132a7d96f46cb7f`); top-level kernel source, run-package embedded kernel source, and local `op_kernel/index_add.cpp` match (`6410d2db10674b315c5cd9f4bc939d3ed07caa9b5a9ca46abe9fa8091577337a`).
-- Status: built; submit after v119 exact-v95 retest result is captured.
+- Submit: 2026-06-30 19:03:23, workId `0000019F1832B3C6B015A9B2D31A9490`.
+- Status: submitted; waiting for official result.
