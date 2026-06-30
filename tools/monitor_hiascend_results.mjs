@@ -152,6 +152,10 @@ function resultStamp(row) {
   return String(row?.lastCommit || new Date().toISOString()).replace(/\D/g, "").slice(0, 14);
 }
 
+function compactStamp(value) {
+  return String(value || "").replace(/\D/g, "").slice(0, 14);
+}
+
 async function downloadText(url, out) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`download failed: HTTP ${res.status}`);
@@ -230,6 +234,8 @@ async function pollOnce(client, args, state) {
 function formatLine(snapshot, downloaded) {
   const w = snapshot.workInfo || {};
   const r = snapshot.rank || {};
+  const uploadStamp = compactStamp(w.uploadTime);
+  const rankStamp = compactStamp(r.lastCommit);
   const pieces = [
     `[${snapshot.ts}]`,
     `topic=${snapshot.topic}`,
@@ -240,6 +246,9 @@ function formatLine(snapshot, downloaded) {
     `lastCommit=${r.lastCommit || "-"}`,
     `commitTimes=${r.commitTimes ?? "-"}`,
   ];
+  if (uploadStamp && rankStamp && uploadStamp > rankStamp) {
+    pieces.push("pendingResult=true");
+  }
   if (downloaded) pieces.push(`downloaded=${downloaded}`);
   else if (r.url) pieces.push("resultUrl=seen");
   return pieces.join(" ");
