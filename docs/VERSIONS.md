@@ -60,7 +60,18 @@ Conclusion: worse than bd40 by 25.736us. Pack2 reduces Case2 slightly but does n
 - SHA256: `205a836ea718b51331a369a83c3bf46f687de8f2b03db7456986212512bc6995`
 - Verification: top-level host source matches (`22eb60d19fbc9c6278b481f2cf04a2423149e5b8b384ff7cc132a7d96f46cb7f`); top-level kernel source, run-package embedded kernel source, and local `op_kernel/index_add.cpp` match (`b527e6e1c9559e202408e1746713399b7ed9f0eb3ea18b8148512e0d257df6d6`).
 - Submit: 2026-06-30 18:54:12, workId `0000019F182A4A9DB01F8D7F53F5AFCA`.
-- Status: submitted; waiting for official result.
+- Official result:
+
+```text
+Case1: Pass, Result: 33.368
+Case2: Pass, Result: 12613.572
+Case3: Pass, Result: 60727.368
+Case4: Pass, Result: 1729368.104
+Case5: Pass, Result: 15622.308
+prof_sum: 1818364.72
+```
+
+Conclusion: full pass and reproduces the historical v95 1.818s band. The much slower v117 result came from later source/binary shape changes rather than the Pack4 algorithm itself, so further optimization should continue from this lean v95 branch.
 
 ## v120 case4-i16-maskreduce
 
