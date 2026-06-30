@@ -366,7 +366,18 @@ Conclusion: full pass, but effectively tied with v115 and still in the 1.901s ba
 - SHA256: `f93ef986c48b19042f1fb9950bbf620e91995202cd17c94cd24b0b01db8afee1`
 - Verification: top-level host source matches (`52775ae1a3152feabebcb8537931c7b34961dbf755207ece8b2e3d6a99fc286a`); top-level kernel source, run-package embedded kernel source, and local `op_kernel/index_add.cpp` match (`e742a81c4f8b609ee9750b0dcfc1f45463969f02132db4d52340ade0586f6b96`).
 - Submit: 2026-06-30 18:32:17, workId `0000019F18163AE8B0115CF0C2ACE2C8`.
-- Status: submitted; waiting for official result.
+- Official result:
+
+```text
+Case1: Pass, Result: 34.008
+Case2: Pass, Result: 12602.78
+Case3: Pass, Result: 60737.66
+Case4: Pass, Result: 1812384.024
+Case5: Pass, Result: 15627.86
+prof_sum: 1901386.332
+```
+
+Conclusion: full pass and slightly better than v115/v116, but it did not recover the older v95 1.729s Case4 band. A direct v95 package/source comparison is needed before assuming the historical result is still reproducible.
 
 ## v118 case4-i8-float-maskreduce
 
