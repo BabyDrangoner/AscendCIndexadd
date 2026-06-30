@@ -167,6 +167,9 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
       ndim == 6 && dim == 4 && axis == 6 && inner == 7;
   const bool use_case4_outer1 =
       use_case4_outer_owned && (dtype_mode == 3 || dtype_mode == 4);
+  const bool use_case4_fp32_maskreduce =
+      use_case4_outer_owned && dtype_mode == 3 && index_dtype_size == 4 &&
+      index_len == 1024;
   const bool use_case4_i8_outer1 =
       use_case4_outer_owned && dtype_mode == 1 &&
       (index_dtype_size == 4 || index_dtype_size == 8) && index_len >= 512;
@@ -254,7 +257,8 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
       work_units = 1;
     }
   }
-  const uint32_t block_cap = use_case4_i8_outer1 ? 40 : 32;
+  const uint32_t block_cap =
+      (use_case4_i8_outer1 || use_case4_fp32_maskreduce) ? 40 : 32;
   uint32_t block_dim =
       work_units < block_cap ? static_cast<uint32_t>(work_units) : block_cap;
   if (block_dim == 0) block_dim = 1;

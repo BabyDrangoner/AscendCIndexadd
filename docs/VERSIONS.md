@@ -325,3 +325,12 @@ Conclusion: full pass but still worse than v95 by 83250.736us. Caching the share
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`03ae775393ecd5d595f686b8a9162d8c624a7afbf969334413730dcae139273a`).
 - Submit: 2026-06-30 17:34:23, workId `0000019F17E1372FB017FCF7AA1E099F`.
 - Status: submitted; waiting for official result.
+
+## v116 case4-fp32-maskreduce-b40
+
+- Change: keep the v115 fp32 mask-reduce kernel unchanged, but raise the exact-shape fp32 mask-reduce host `blockDim` cap from 32 to 40.
+- Rationale: the v115 kernel parallelizes by outer row. If hidden Case4 has `outer == 120`, 40 blocks give an even three outers per block and match the scheduling that worked best for the int8 Case4 family.
+- Package: `IndexAdd_v116_case4_fp32_maskreduce_b40.zip`
+- SHA256: `e6381fc8f1938e3d299abb927e660ee5c1b228fcaf5c2f59bfcf1c0ed0c64c16`
+- Verification: top-level host source matches (`52775ae1a3152feabebcb8537931c7b34961dbf755207ece8b2e3d6a99fc286a`); top-level kernel source, run-package embedded kernel source, and local `op_kernel/index_add.cpp` match (`03ae775393ecd5d595f686b8a9162d8c624a7afbf969334413730dcae139273a`).
+- Status: built; submit after v115 result is captured.
