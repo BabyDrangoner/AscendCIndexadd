@@ -293,4 +293,5 @@ Conclusion: full pass but still in the slower packed/position-list band, worse t
 - Package: `IndexAdd_v113_pack4_cachedidx.zip`
 - SHA256: `a05295cddaba71d3379f7bb9df995071d8d3e52d8b55b2004368d0df6019c4ba`
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`c40d038ca8f3634c2c61e3a6ee992235112adf0e006a31119f99bf398c200608`).
-- Status: built; submit after v111/v112 trend is known.
+- Submit: 2026-06-30 17:11:23, workId `0000019F17CC2207B014CF897630FCB6`.
+- Status: submitted; waiting for official result.
