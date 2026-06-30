@@ -10,7 +10,8 @@
 using namespace AscendC;
 
 constexpr uint32_t kDataBytes = 16384;
-constexpr uint32_t kCase4I8SourceBytes = 32768;
+constexpr uint32_t kCase4I8SourceBytes = 16384;
+constexpr uint32_t kCase4I8Pack4SourceBytes = 8192;
 constexpr uint32_t kAlign = 32;
 constexpr uint32_t kInnerTileElems = kDataBytes / sizeof(float);
 constexpr uint32_t kIndexTileBytes = 32768;
@@ -159,13 +160,14 @@ class IndexAddKernel {
     const bool case4_i8_pack3 = UseCase4Int8Pack3Path();
     const bool case4_i8_pack4 = UseCase4Int8Pack4Path();
     const uint32_t src_buf_bytes =
-        (case4_i8_pack4 || UseCase4Int8Outer1Path())
-            ? AlignUp32(kCase4I8SourceBytes)
-            : buf_bytes;
+        case4_i8_pack4
+            ? AlignUp32(kCase4I8Pack4SourceBytes)
+            : (UseCase4Int8Outer1Path() ? AlignUp32(kCase4I8SourceBytes)
+                                        : buf_bytes);
     const uint32_t aux_buf_bytes =
-        case4_i8_pack4 ? AlignUp32(kCase4I8SourceBytes) : buf_bytes;
+        case4_i8_pack4 ? AlignUp32(kCase4I8Pack4SourceBytes) : buf_bytes;
     const uint32_t out_buf_bytes =
-        case4_i8_pack4 ? AlignUp32(kCase4I8SourceBytes) : buf_bytes;
+        case4_i8_pack4 ? AlignUp32(kCase4I8Pack4SourceBytes) : buf_bytes;
     pipe_.InitBuffer(src_buf_, src_buf_bytes);
     pipe_.InitBuffer(out_buf_, out_buf_bytes);
     pipe_.InitBuffer(acc_buf_, aux_buf_bytes);
@@ -178,6 +180,10 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
+    if (UseCase4Int8Pack4Path()) {
+      ProcessCase4Pack4Int8();
+      return;
+    }
     if (UseCase4Int8Class4Path()) {
       if (index_dtype_size_ == 8) {
         ProcessCase4Class4Int864();
@@ -188,10 +194,6 @@ class IndexAddKernel {
     }
     if (UseCase4Int8Pack3Path()) {
       ProcessCase4Pack3Int8();
-      return;
-    }
-    if (UseCase4Int8Pack4Path()) {
-      ProcessCase4Pack4Int8();
       return;
     }
     if (UseCase4Int8Outer1Path()) {
@@ -1542,7 +1544,7 @@ class IndexAddKernel {
     LocalTensor<int8_t> src3 = out_buf_.Get<int8_t>();
     DataCopyPadParams pad{false, 0, 0, 0};
     DataCopyParams rows_copy{1, 42, 0, 0};
-    const uint32_t src_tile_cap = kCase4I8SourceBytes / 7;
+    const uint32_t src_tile_cap = kCase4I8Pack4SourceBytes / 7;
     const uint32_t tile_cap = MinU32(IndexTileCap32(), src_tile_cap);
     const uint32_t groups = outer_ >> 2;
     const uint32_t core_num = GetBlockNum();

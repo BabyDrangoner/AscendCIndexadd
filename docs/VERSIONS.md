@@ -158,7 +158,18 @@ Conclusion: full pass but worse than v95 by 83162.516us. Pack3 scheduling withou
 - Rationale: v99 showed larger source tiles hurt. This instead tests whether reducing branch pressure in the hot int8 Case4 loop can beat Pack3/Pack4 while keeping UB usage inside the original 16KB buffers.
 - Package: `IndexAdd_v103_class3_tile1024.zip`
 - SHA256: `82575150c5b1091798b8b636e239b4b44318f62fa32476c026e0c894bd4a9795`
-- Status: built; submit after v102 official result is captured.
+- Official result:
+
+```text
+Case1: Pass, Result: 33.656
+Case2: Pass, Result: 12608.208
+Case3: Pass, Result: 61471.232
+Case4: Pass, Result: 1901334.44
+Case5: Pass, Result: 15620.652
+prof_sum: 1991068.188
+```
+
+Conclusion: full pass, but worse than v95 by 172756.656us and worse than v102 by 19594.14us. Classifying index positions before reading source adds too much UB traffic; skip v104 unless a future signal contradicts this.
 
 ## v104 class3-tile512
 
@@ -175,3 +186,12 @@ Conclusion: full pass but worse than v95 by 83162.516us. Pack3 scheduling withou
 - Package: `IndexAdd_v105_class4_tile1024.zip`
 - SHA256: `9b093ad36595996cfdb941ed5ca70b62d53882c192ef4e6af918920fb63ae774`
 - Status: built; submit after v103/v104 depending on Class3 signal.
+
+## v106 pack4-src8k
+
+- Change: restore the Case4 int8 dispatch priority to the v95-style Pack4 path, reduce only the Pack4 source tile to 8KB, and restore the Outer1 tile to 16KB.
+- Rationale: v99 showed 32KB Pack4 buffers were slower, likely from UB pressure. This candidate sweeps the opposite direction while keeping Pack4's four-outer index reuse.
+- Package: `IndexAdd_v106_pack4_src8k.zip`
+- SHA256: `d9e440d7c8f1ef93d10fd03bc0c2a1b009543925d0858a1b7da7b0e0564fbd9f`
+- Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`89d6512568039f883c2036f65e250ccd1103a27e2ccaf637b4948e21a83330de`).
+- Status: built; submit after v103 result is captured or if we decide to overwrite the pending run.
