@@ -189,6 +189,10 @@ class IndexAddKernel {
       ProcessCase4MaskReduce4B();
       return;
     }
+    if (UseCase4MaskReduceInt8Path()) {
+      ProcessCase4MaskReduceInt8();
+      return;
+    }
     if (UseCase4Int8Pack4Path()) {
       ProcessCase4Pack4Int8();
       return;
@@ -403,6 +407,12 @@ class IndexAddKernel {
 
   __aicore__ inline bool UseCase4MaskReduce4BPath() const {
     return dtype_mode_ == kDtypeFp32 && index_dtype_size_ == 4 &&
+           ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
+           index_len_ == (kCase4MaskReduceTile << 1);
+  }
+
+  __aicore__ inline bool UseCase4MaskReduceInt8Path() const {
+    return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
            ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
            index_len_ == (kCase4MaskReduceTile << 1);
   }
@@ -1091,6 +1101,126 @@ class IndexAddKernel {
   __aicore__ inline void ProcessCase4MaskReduce4B() {
     ProcessCase4MaskReduce4BImpl<float>(input_f32_gm_, source_f32_gm_,
                                         output_f32_gm_);
+  }
+
+  __aicore__ inline void ProcessCase4MaskReduceInt8() {
+    LocalTensor<int32_t> idx_exp = index32_buf_.Get<int32_t>();
+    LocalTensor<uint8_t> masks =
+        index32_buf_.Get<uint8_t>()[kCase4MaskReduceIdxBytes];
+    constexpr uint32_t kPartialElems = 6 * 8 * 7;
+    constexpr uint32_t kHalfScratchOffset =
+        (kPartialElems * sizeof(float)) / sizeof(half);
+    LocalTensor<int8_t> src_i8 = src_buf_.Get<int8_t>();
+    LocalTensor<float> src_f = src_cast_buf_.Get<float>();
+    LocalTensor<float> masked = out_buf_.Get<float>();
+    LocalTensor<float> partial = acc_buf_.Get<float>();
+    LocalTensor<half> src_h = acc_buf_.Get<half>()[kHalfScratchOffset];
+    DataCopyPadParams pad{false, 0, 0, 0};
+    DataCopyParams row_copy{1, 42, 0, 0};
+    DataCopyParams src_copy{1, static_cast<uint16_t>(kCase4MaskReduceElems), 0,
+                            0};
+
+    for (uint32_t tile = 0; tile < 2; ++tile) {
+      const uint32_t base = tile * kCase4MaskReduceTile;
+      for (uint32_t i = 0; i < kCase4MaskReduceTile; ++i) {
+        const int32_t v = index32_gm_.GetValue(base + i);
+        const uint32_t off = i * 7;
+        idx_exp.SetValue(off + 0, v);
+        idx_exp.SetValue(off + 1, v);
+        idx_exp.SetValue(off + 2, v);
+        idx_exp.SetValue(off + 3, v);
+        idx_exp.SetValue(off + 4, v);
+        idx_exp.SetValue(off + 5, v);
+        idx_exp.SetValue(off + 6, v);
+      }
+      for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
+        const uint32_t mask_off =
+            (tile * 6 + axis_id) * kCase4MaskReduceMaskBytes;
+        CompareScalar(masks[mask_off], idx_exp, static_cast<int32_t>(axis_id),
+                      CMPMODE::EQ, kCase4MaskReduceElems);
+        PipeBarrier<PIPE_V>();
+      }
+    }
+
+    const uint32_t core_num = GetBlockNum();
+    const uint32_t cid = GetBlockIdx();
+    for (uint32_t outer_id = cid; outer_id < outer_; outer_id += core_num) {
+      for (uint32_t i = 0; i < kPartialElems; ++i) {
+        partial.SetValue(i, 0.0f);
+      }
+
+      for (uint32_t tile = 0; tile < 2; ++tile) {
+        const uint32_t base = tile * kCase4MaskReduceTile;
+        DataCopyPad(src_i8, source_i8_gm_[SourceOffset(outer_id, base, 0)],
+                    src_copy, pad);
+        PipeBarrier<PIPE_MTE2>();
+        Cast(src_h, src_i8, RoundMode::CAST_NONE, kCase4MaskReduceElems);
+        PipeBarrier<PIPE_V>();
+        Cast(src_f, src_h, RoundMode::CAST_NONE, kCase4MaskReduceElems);
+        PipeBarrier<PIPE_V>();
+
+        for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
+          const uint32_t mask_off =
+              (tile * 6 + axis_id) * kCase4MaskReduceMaskBytes;
+          Select(masked, masks[mask_off], src_f, 0.0f,
+                 SELMODE::VSEL_TENSOR_SCALAR_MODE, kCase4MaskReduceElems);
+          PipeBarrier<PIPE_V>();
+
+          for (uint32_t n = kCase4MaskReduceTile; n > 8; n >>= 1) {
+            const uint32_t h = n >> 1;
+            const uint32_t elems = h * 7;
+            Add(masked, masked, masked[elems], static_cast<int32_t>(elems));
+            PipeBarrier<PIPE_V>();
+          }
+
+          const uint32_t partial_base = axis_id * 8 * 7;
+          for (uint32_t r = 0; r < 8; ++r) {
+            const uint32_t row_off = r * 7;
+            const uint32_t part_off = partial_base + row_off;
+            partial.SetValue(part_off + 0,
+                             partial.GetValue(part_off + 0) +
+                                 masked.GetValue(row_off + 0));
+            partial.SetValue(part_off + 1,
+                             partial.GetValue(part_off + 1) +
+                                 masked.GetValue(row_off + 1));
+            partial.SetValue(part_off + 2,
+                             partial.GetValue(part_off + 2) +
+                                 masked.GetValue(row_off + 2));
+            partial.SetValue(part_off + 3,
+                             partial.GetValue(part_off + 3) +
+                                 masked.GetValue(row_off + 3));
+            partial.SetValue(part_off + 4,
+                             partial.GetValue(part_off + 4) +
+                                 masked.GetValue(row_off + 4));
+            partial.SetValue(part_off + 5,
+                             partial.GetValue(part_off + 5) +
+                                 masked.GetValue(row_off + 5));
+            partial.SetValue(part_off + 6,
+                             partial.GetValue(part_off + 6) +
+                                 masked.GetValue(row_off + 6));
+          }
+        }
+      }
+
+      DataCopyPad(src_i8, input_i8_gm_[InputOffset(outer_id, 0, 0)], row_copy,
+                  pad);
+      PipeBarrier<PIPE_MTE2>();
+      for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
+        const uint32_t dst_base = axis_id * 7;
+        const uint32_t partial_base = axis_id * 8 * 7;
+        for (uint32_t w = 0; w < 7; ++w) {
+          float sum = static_cast<float>(src_i8.GetValue(dst_base + w));
+          for (uint32_t r = 0; r < 8; ++r) {
+            sum = sum + partial.GetValue(partial_base + r * 7 + w);
+          }
+          src_i8.SetValue(dst_base + w,
+                          static_cast<int8_t>(static_cast<int32_t>(sum)));
+        }
+      }
+      DataCopyPad(output_i8_gm_[InputOffset(outer_id, 0, 0)], src_i8,
+                  row_copy);
+      PipeBarrier<PIPE_MTE3>();
+    }
   }
 
   template <typename T>

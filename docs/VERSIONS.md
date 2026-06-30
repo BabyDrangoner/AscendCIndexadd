@@ -367,3 +367,12 @@ Conclusion: full pass, but effectively tied with v115 and still in the 1.901s ba
 - Verification: top-level host source matches (`52775ae1a3152feabebcb8537931c7b34961dbf755207ece8b2e3d6a99fc286a`); top-level kernel source, run-package embedded kernel source, and local `op_kernel/index_add.cpp` match (`e742a81c4f8b609ee9750b0dcfc1f45463969f02132db4d52340ade0586f6b96`).
 - Submit: 2026-06-30 18:32:17, workId `0000019F18163AE8B0115CF0C2ACE2C8`.
 - Status: submitted; waiting for official result.
+
+## v118 case4-i8-float-maskreduce
+
+- Change: add an exact-shape int8 Case4 mask-reduce path before the restored v95 Pack4 fallback. It precomputes the shared 512x7 onehot masks for both index tiles once per core, casts each int8 source tile through half to float, applies `Select(mask, src, 0)`, and reduces 512 rows to 8 rows with vector `Add` before a small scalar tail and int8 row writeback.
+- Rationale: the profile showed the hot Case4 kernel is scalar-pipe bound. This candidate applies the fp32 mask-reduce algorithm to int8 while preserving exact integer accumulation in float and final low-byte int8 semantics.
+- Package: `IndexAdd_v118_case4_i8_float_maskreduce.zip`
+- SHA256: `bc23bf6f46abc45d618702eb3c83efbe44d33b7ffdc1538ac1585c4580d12f68`
+- Verification: top-level host source matches (`52775ae1a3152feabebcb8537931c7b34961dbf755207ece8b2e3d6a99fc286a`); top-level kernel source, run-package embedded kernel source, and local `op_kernel/index_add.cpp` match (`428cae49bb460988c06a827b1cdc289edd76f8b5f72bc295f1104b66c16a9727`).
+- Status: built; ready to submit after v117 pending state is recorded.
