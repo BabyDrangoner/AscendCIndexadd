@@ -139,7 +139,18 @@ Conclusion: full pass, but worse than v95 by 83090.804us. The 32KB Pack4 tile hu
 - Rationale: separates Pack3 scheduling/core-occupancy effects from the larger 32KB tile and UB pressure.
 - Package: `IndexAdd_v102_pack3_src16k.zip`
 - SHA256: `49f9137d447bc3a7d1d63c17b2ca0721d355b82a3d3e4ca169921e748213f6a3`
-- Status: built; submit after Pack3 32KB candidate if needed.
+- Official result:
+
+```text
+Case1: Pass, Result: 37.908
+Case2: Pass, Result: 12630.28
+Case3: Pass, Result: 60773.312
+Case4: Pass, Result: 1812396.92
+Case5: Pass, Result: 15635.628
+prof_sum: 1901474.048
+```
+
+Conclusion: full pass but worse than v95 by 83162.516us. Pack3 scheduling without the 32KB tile still falls into the 1.901s band, so Pack3 is not promising.
 
 ## v103 class3-tile1024
 
