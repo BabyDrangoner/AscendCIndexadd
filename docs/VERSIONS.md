@@ -102,4 +102,15 @@ Conclusion: full pass but falls back into the 1.901s band. The half-select plus 
 - SHA256: `47af783c8f9ad945af7b664a712c7c8884a9bbf2e26fff71e245fb53f05a6f93`
 - Verification: top-level host source matches; top-level kernel source, run-package embedded kernel source, and local `op_kernel/index_add.cpp` match.
 - Submit: 2026-06-30 19:39:58 CST, workId `0000019F185431BBB02149BD9478A0F2`.
-- Status: submitted; awaiting official result.
+- Official result:
+
+```text
+Case1: Pass, Result: 33.508
+Case2: Pass, Result: 12631.172
+Case3: Pass, Result: 60714.872
+Case4: Pass, Result: 1729263.24
+Case5: Pass, Result: 15605.816
+prof_sum: 1818248.608
+```
+
+Conclusion: full pass and the best result so far on the lean v95 branch, improving v119 by 116.112us. The gain is still tiny relative to the leaderboard gap, confirming that packed/cache scalar tuning is near its ceiling and the next meaningful attempt needs a cube/matrix-style reduction or another true vectorized segmented reduction.
