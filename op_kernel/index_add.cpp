@@ -180,6 +180,10 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
+    if (UseCase4Int8CachedPack4Path()) {
+      ProcessCase4Pack4CachedIdxInt8();
+      return;
+    }
     if (UseCase4Int8Block8Pack4Path()) {
       ProcessCase4Pack4Block8Int8();
       return;
@@ -334,6 +338,12 @@ class IndexAddKernel {
   }
 
   __aicore__ inline bool UseCase4Int8Block8Pack4Path() const {
+    return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
+           ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
+           index_len_ == 1024 && ((outer_ & 3) == 0);
+  }
+
+  __aicore__ inline bool UseCase4Int8CachedPack4Path() const {
     return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
            ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
            index_len_ == 1024 && ((outer_ & 3) == 0);
@@ -1587,6 +1597,143 @@ class IndexAddKernel {
     dst.SetValue(byte_off + 4, static_cast<int8_t>((value >> 32) & 0xff));
     dst.SetValue(byte_off + 5, static_cast<int8_t>((value >> 40) & 0xff));
     dst.SetValue(byte_off + 6, static_cast<int8_t>((value >> 48) & 0xff));
+  }
+
+  __aicore__ inline void ProcessCase4Pack4CachedIdxInt8() {
+    LocalTensor<uint8_t> idx = index32_buf_.Get<uint8_t>();
+    LocalTensor<int8_t> src0 = src_buf_.Get<int8_t>();
+    LocalTensor<int8_t> src1 = src_cast_buf_.Get<int8_t>();
+    LocalTensor<int8_t> src2 = acc_buf_.Get<int8_t>();
+    LocalTensor<int8_t> src3 = out_buf_.Get<int8_t>();
+    DataCopyPadParams pad{false, 0, 0, 0};
+    DataCopyParams rows_copy{1, 42, 0, 0};
+    DataCopyParams src_copy{1, 7168, 0, 0};
+    const uint32_t groups = outer_ >> 2;
+    const uint32_t core_num = GetBlockNum();
+    const uint32_t cid = GetBlockIdx();
+
+    for (uint32_t i = 0; i < 1024; ++i) {
+      idx.SetValue(i, static_cast<uint8_t>(index32_gm_.GetValue(i)));
+    }
+
+    for (uint32_t group = cid; group < groups; group += core_num) {
+      const uint32_t outer0 = group << 2;
+      const uint32_t outer1 = outer0 + 1;
+      const uint32_t outer2 = outer0 + 2;
+      const uint32_t outer3 = outer0 + 3;
+
+#define DECL_I8P4_CACHED_ACC(P, R) \
+      int32_t P##R##0 = 0; \
+      int32_t P##R##1 = 0; \
+      int32_t P##R##2 = 0; \
+      int32_t P##R##3 = 0; \
+      int32_t P##R##4 = 0; \
+      int32_t P##R##5 = 0; \
+      int32_t P##R##6 = 0
+      DECL_I8P4_CACHED_ACC(a, 0); DECL_I8P4_CACHED_ACC(a, 1);
+      DECL_I8P4_CACHED_ACC(a, 2); DECL_I8P4_CACHED_ACC(a, 3);
+      DECL_I8P4_CACHED_ACC(a, 4); DECL_I8P4_CACHED_ACC(a, 5);
+      DECL_I8P4_CACHED_ACC(b, 0); DECL_I8P4_CACHED_ACC(b, 1);
+      DECL_I8P4_CACHED_ACC(b, 2); DECL_I8P4_CACHED_ACC(b, 3);
+      DECL_I8P4_CACHED_ACC(b, 4); DECL_I8P4_CACHED_ACC(b, 5);
+      DECL_I8P4_CACHED_ACC(c, 0); DECL_I8P4_CACHED_ACC(c, 1);
+      DECL_I8P4_CACHED_ACC(c, 2); DECL_I8P4_CACHED_ACC(c, 3);
+      DECL_I8P4_CACHED_ACC(c, 4); DECL_I8P4_CACHED_ACC(c, 5);
+      DECL_I8P4_CACHED_ACC(d, 0); DECL_I8P4_CACHED_ACC(d, 1);
+      DECL_I8P4_CACHED_ACC(d, 2); DECL_I8P4_CACHED_ACC(d, 3);
+      DECL_I8P4_CACHED_ACC(d, 4); DECL_I8P4_CACHED_ACC(d, 5);
+#undef DECL_I8P4_CACHED_ACC
+
+#define LOAD_I8P4_CACHED_ACC(P, R) \
+      P##R##0 = static_cast<int32_t>(src0.GetValue((R) * 7 + 0)); \
+      P##R##1 = static_cast<int32_t>(src0.GetValue((R) * 7 + 1)); \
+      P##R##2 = static_cast<int32_t>(src0.GetValue((R) * 7 + 2)); \
+      P##R##3 = static_cast<int32_t>(src0.GetValue((R) * 7 + 3)); \
+      P##R##4 = static_cast<int32_t>(src0.GetValue((R) * 7 + 4)); \
+      P##R##5 = static_cast<int32_t>(src0.GetValue((R) * 7 + 5)); \
+      P##R##6 = static_cast<int32_t>(src0.GetValue((R) * 7 + 6))
+#define LOAD_I8P4_CACHED_OUTER(P, OUTER) \
+      do { \
+        DataCopyPad(src0, input_i8_gm_[InputOffset((OUTER), 0, 0)], rows_copy, pad); \
+        PipeBarrier<PIPE_MTE2>(); \
+        LOAD_I8P4_CACHED_ACC(P, 0); LOAD_I8P4_CACHED_ACC(P, 1); \
+        LOAD_I8P4_CACHED_ACC(P, 2); LOAD_I8P4_CACHED_ACC(P, 3); \
+        LOAD_I8P4_CACHED_ACC(P, 4); LOAD_I8P4_CACHED_ACC(P, 5); \
+      } while (0)
+      LOAD_I8P4_CACHED_OUTER(a, outer0);
+      LOAD_I8P4_CACHED_OUTER(b, outer1);
+      LOAD_I8P4_CACHED_OUTER(c, outer2);
+      LOAD_I8P4_CACHED_OUTER(d, outer3);
+#undef LOAD_I8P4_CACHED_OUTER
+#undef LOAD_I8P4_CACHED_ACC
+
+      DataCopyPad(src0, source_i8_gm_[SourceOffset(outer0, 0, 0)],
+                  src_copy, pad);
+      DataCopyPad(src1, source_i8_gm_[SourceOffset(outer1, 0, 0)],
+                  src_copy, pad);
+      DataCopyPad(src2, source_i8_gm_[SourceOffset(outer2, 0, 0)],
+                  src_copy, pad);
+      DataCopyPad(src3, source_i8_gm_[SourceOffset(outer3, 0, 0)],
+                  src_copy, pad);
+      PipeBarrier<PIPE_MTE2>();
+
+      for (uint32_t i = 0; i < 1024; ++i) {
+        const uint32_t src_off = i * 7;
+#define ADD_I8P4_CACHED_ONE(P, R, BUF) \
+        do { \
+          P##R##0 += static_cast<int32_t>(BUF.GetValue(src_off + 0)); \
+          P##R##1 += static_cast<int32_t>(BUF.GetValue(src_off + 1)); \
+          P##R##2 += static_cast<int32_t>(BUF.GetValue(src_off + 2)); \
+          P##R##3 += static_cast<int32_t>(BUF.GetValue(src_off + 3)); \
+          P##R##4 += static_cast<int32_t>(BUF.GetValue(src_off + 4)); \
+          P##R##5 += static_cast<int32_t>(BUF.GetValue(src_off + 5)); \
+          P##R##6 += static_cast<int32_t>(BUF.GetValue(src_off + 6)); \
+        } while (0)
+#define ADD_I8P4_CACHED_ROW4(R) \
+        do { \
+          ADD_I8P4_CACHED_ONE(a, R, src0); \
+          ADD_I8P4_CACHED_ONE(b, R, src1); \
+          ADD_I8P4_CACHED_ONE(c, R, src2); \
+          ADD_I8P4_CACHED_ONE(d, R, src3); \
+        } while (0)
+        switch (static_cast<uint32_t>(idx.GetValue(i))) {
+          case 0: ADD_I8P4_CACHED_ROW4(0); break;
+          case 1: ADD_I8P4_CACHED_ROW4(1); break;
+          case 2: ADD_I8P4_CACHED_ROW4(2); break;
+          case 3: ADD_I8P4_CACHED_ROW4(3); break;
+          case 4: ADD_I8P4_CACHED_ROW4(4); break;
+          case 5: ADD_I8P4_CACHED_ROW4(5); break;
+          default: break;
+        }
+#undef ADD_I8P4_CACHED_ROW4
+#undef ADD_I8P4_CACHED_ONE
+      }
+
+#define STORE_I8P4_CACHED_ACC(P, R) \
+      do { \
+        src3.SetValue((R) * 7 + 0, static_cast<int8_t>(P##R##0)); \
+        src3.SetValue((R) * 7 + 1, static_cast<int8_t>(P##R##1)); \
+        src3.SetValue((R) * 7 + 2, static_cast<int8_t>(P##R##2)); \
+        src3.SetValue((R) * 7 + 3, static_cast<int8_t>(P##R##3)); \
+        src3.SetValue((R) * 7 + 4, static_cast<int8_t>(P##R##4)); \
+        src3.SetValue((R) * 7 + 5, static_cast<int8_t>(P##R##5)); \
+        src3.SetValue((R) * 7 + 6, static_cast<int8_t>(P##R##6)); \
+      } while (0)
+#define STORE_I8P4_CACHED_OUTER(P, OUTER) \
+      do { \
+        STORE_I8P4_CACHED_ACC(P, 0); STORE_I8P4_CACHED_ACC(P, 1); \
+        STORE_I8P4_CACHED_ACC(P, 2); STORE_I8P4_CACHED_ACC(P, 3); \
+        STORE_I8P4_CACHED_ACC(P, 4); STORE_I8P4_CACHED_ACC(P, 5); \
+        DataCopyPad(output_i8_gm_[InputOffset((OUTER), 0, 0)], src3, rows_copy); \
+        PipeBarrier<PIPE_MTE3>(); \
+      } while (0)
+      STORE_I8P4_CACHED_OUTER(a, outer0);
+      STORE_I8P4_CACHED_OUTER(b, outer1);
+      STORE_I8P4_CACHED_OUTER(c, outer2);
+      STORE_I8P4_CACHED_OUTER(d, outer3);
+#undef STORE_I8P4_CACHED_OUTER
+#undef STORE_I8P4_CACHED_ACC
+    }
   }
 
   __aicore__ inline void ProcessCase4Pack4Block8Int8() {

@@ -274,3 +274,12 @@ Conclusion: full pass, but still worse than v95 by 83456.0us. Packed byte accumu
 - SHA256: `1c67a869d91372b6fd20ffc85249904553ba6518dc290eb078c0a53557401f8e`
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`b3c9e429089b899de1aa68b99d40b674e351a8c17b573be7b1a3bf6dbc4dca19`).
 - Status: built; submit after v111 result is captured.
+
+## v113 pack4-cachedidx
+
+- Change: add an exact-shape Case4 int8 Pack4CachedIdx path for `index_len == 1024`. It returns to the v95-style int32 accumulator and sequential source scan, but caches the shared int32 index as uint8 once per core instead of copying/reading an int32 index tile for every Pack4 group.
+- Rationale: official v109 showed packed byte arithmetic was slower than v95. This candidate isolates the cheaper part of the profile idea: reduce repeated index handling without introducing packed bit operations or position-list source gathers.
+- Package: `IndexAdd_v113_pack4_cachedidx.zip`
+- SHA256: `a05295cddaba71d3379f7bb9df995071d8d3e52d8b55b2004368d0df6019c4ba`
+- Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`c40d038ca8f3634c2c61e3a6ee992235112adf0e006a31119f99bf398c200608`).
+- Status: built; submit after v111/v112 trend is known.
