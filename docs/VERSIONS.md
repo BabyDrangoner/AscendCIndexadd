@@ -148,3 +148,11 @@ Conclusion: full pass, but worse than v95 by 83090.804us. The 32KB Pack4 tile hu
 - Package: `IndexAdd_v103_class3_tile1024.zip`
 - SHA256: `82575150c5b1091798b8b636e239b4b44318f62fa32476c026e0c894bd4a9795`
 - Status: built; submit after v102 official result is captured.
+
+## v104 class3-tile512
+
+- Change: reduce the Class3 position/source tile from 1024 to 512 entries.
+- Rationale: parameter sweep for the Class3 path. Smaller tiles increase loop count but reduce active UB position/source footprint and may improve local access behavior.
+- Package: `IndexAdd_v104_class3_tile512.zip`
+- SHA256: `2ea2b733bbab0c58da2082d6c1ed9b6acff1c6cd89b01a2053d0caeb26ffa24f`
+- Status: built; submit after v103 if Class3 shows promise.
