@@ -18,7 +18,7 @@ constexpr uint32_t kGroupRows = 16;
 constexpr uint32_t kWideGroupRows = 32;
 constexpr uint32_t kSmallInnerGroupRows = 256;
 constexpr uint32_t kCase4I8AlignedRows = 32;
-constexpr uint32_t kCase4I8ClassTile = 512;
+constexpr uint32_t kCase4I8ClassTile = 1024;
 constexpr uint32_t kInner1RowCap = kDataBytes / sizeof(float);
 constexpr uint32_t kDtypeInt8 = 1;
 constexpr uint32_t kDtypeFp16 = 2;
@@ -178,11 +178,11 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
-    if (UseCase4Int8Class3Path()) {
+    if (UseCase4Int8Class4Path()) {
       if (index_dtype_size_ == 8) {
-        ProcessCase4Class3Int864();
+        ProcessCase4Class4Int864();
       } else {
-        ProcessCase4Class3Int832();
+        ProcessCase4Class4Int832();
       }
       return;
     }
@@ -309,11 +309,11 @@ class IndexAddKernel {
            index_len_ >= 512;
   }
 
-  __aicore__ inline bool UseCase4Int8Class3Path() const {
+  __aicore__ inline bool UseCase4Int8Class4Path() const {
     return dtype_mode_ == kDtypeInt8 &&
            (index_dtype_size_ == 4 || index_dtype_size_ == 8) &&
            ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
-           index_len_ >= 512 && outer_ >= 3;
+           index_len_ >= 512 && outer_ >= 4;
   }
 
   __aicore__ inline bool UseCase4Int8Pack4Path() const {
@@ -1040,18 +1040,18 @@ class IndexAddKernel {
     }
   }
 
-  __aicore__ inline void ProcessCase4Class3Int832() {
+  __aicore__ inline void ProcessCase4Class4Int832() {
     LocalTensor<int32_t> idx = index32_buf_.Get<int32_t>();
-    ProcessCase4Class3Int8(idx);
+    ProcessCase4Class4Int8(idx);
   }
 
-  __aicore__ inline void ProcessCase4Class3Int864() {
+  __aicore__ inline void ProcessCase4Class4Int864() {
     LocalTensor<int64_t> idx = index64_buf_.Get<int64_t>();
-    ProcessCase4Class3Int8(idx);
+    ProcessCase4Class4Int8(idx);
   }
 
   template <typename IdxT>
-  __aicore__ inline void ProcessCase4Class3Int8(LocalTensor<IdxT>& idx) {
+  __aicore__ inline void ProcessCase4Class4Int8(LocalTensor<IdxT>& idx) {
     LocalTensor<uint16_t> pos = out_buf_.Get<uint16_t>();
     LocalTensor<int32_t> acc = acc_buf_.Get<int32_t>();
     LocalTensor<int8_t> src = src_buf_.Get<int8_t>();
@@ -1059,13 +1059,13 @@ class IndexAddKernel {
     DataCopyPadParams pad{false, 0, 0, 0};
     DataCopyParams rows_copy{1, 42, 0, 0};
     const uint32_t tile_cap = MinU32(IndexTileCap(idx), kCase4I8ClassTile);
-    const uint32_t groups = (outer_ + 2) / 3;
+    const uint32_t groups = (outer_ + 3) / 4;
     const uint32_t core_num = GetBlockNum();
     const uint32_t cid = GetBlockIdx();
 
     for (uint32_t group = cid; group < groups; group += core_num) {
-      const uint32_t outer0 = group * 3;
-      const uint32_t group_outers = MinU32(3, outer_ - outer0);
+      const uint32_t outer0 = group * 4;
+      const uint32_t group_outers = MinU32(4, outer_ - outer0);
 
       for (uint32_t p = 0; p < group_outers; ++p) {
         const uint64_t in_base = (uint64_t)(outer0 + p) * 42;

@@ -167,3 +167,11 @@ Conclusion: full pass but worse than v95 by 83162.516us. Pack3 scheduling withou
 - Package: `IndexAdd_v104_class3_tile512.zip`
 - SHA256: `2ea2b733bbab0c58da2082d6c1ed9b6acff1c6cd89b01a2053d0caeb26ffa24f`
 - Status: built; submit after v103 if Class3 shows promise.
+
+## v105 class4-tile1024
+
+- Change: switch the classified Case4 int8 path to four outer rows per group with a 1024-entry tile, while keeping host `blockDim` at the v95-style 40.
+- Rationale: compares against Pack4 more directly: same four-row index reuse shape and 40-block launch behavior, but source accumulation runs by preclassified index buckets instead of a per-source switch.
+- Package: `IndexAdd_v105_class4_tile1024.zip`
+- SHA256: `9b093ad36595996cfdb941ed5ca70b62d53882c192ef4e6af918920fb63ae774`
+- Status: built; submit after v103/v104 depending on Class3 signal.
