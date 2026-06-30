@@ -1,0 +1,8 @@
+build_out/
+releases/
+.cache/
+*.zip
+*.run
+*.sha256
+*.log
+.DS_Store
