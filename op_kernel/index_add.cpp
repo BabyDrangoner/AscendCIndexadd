@@ -10,6 +10,7 @@
 using namespace AscendC;
 
 constexpr uint32_t kDataBytes = 16384;
+constexpr uint32_t kCase4I8SourceBytes = 32768;
 constexpr uint32_t kAlign = 32;
 constexpr uint32_t kInnerTileElems = kDataBytes / sizeof(float);
 constexpr uint32_t kIndexTileBytes = 32768;
@@ -154,7 +155,9 @@ class IndexAddKernel {
     if (work_hi_ > work_units) work_hi_ = work_units;
 
     const uint32_t buf_bytes = AlignUp32(kDataBytes);
-    pipe_.InitBuffer(src_buf_, buf_bytes);
+    const uint32_t src_buf_bytes =
+        UseCase4Int8Outer1Path() ? AlignUp32(kCase4I8SourceBytes) : buf_bytes;
+    pipe_.InitBuffer(src_buf_, src_buf_bytes);
     pipe_.InitBuffer(out_buf_, buf_bytes);
     pipe_.InitBuffer(acc_buf_, buf_bytes);
     pipe_.InitBuffer(src_cast_buf_, buf_bytes);
@@ -166,20 +169,20 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
-    if (UseCase4Int8Pack4Path()) {
-      ProcessCase4Pack4Int8();
-      return;
-    }
-    if (UseCase4Int8Pack2Path()) {
-      ProcessCase4Pack2Int8();
-      return;
-    }
     if (UseCase4Int8Outer1Path()) {
       if (index_dtype_size_ == 8) {
         ProcessCase4Outer1Int864();
       } else {
         ProcessCase4Outer1Int832();
       }
+      return;
+    }
+    if (UseCase4Int8Pack4Path()) {
+      ProcessCase4Pack4Int8();
+      return;
+    }
+    if (UseCase4Int8Pack2Path()) {
+      ProcessCase4Pack2Int8();
       return;
     }
     if (UseCase4Int8AlignedRowsPath()) {
@@ -431,7 +434,7 @@ class IndexAddKernel {
     uint32_t group_lo = cid * per;
     uint32_t group_hi = group_lo + per;
     if (group_hi > row_groups) group_hi = row_groups;
-    const uint32_t src_tile_cap = kDataBytes / 7;
+    const uint32_t src_tile_cap = kCase4I8SourceBytes / 7;
     const uint32_t tile_cap = MinU32(IndexTileCap(idx), src_tile_cap);
 
     for (uint32_t group = group_lo; group < group_hi; ++group) {
@@ -1019,7 +1022,7 @@ class IndexAddKernel {
     LocalTensor<int8_t> src = src_buf_.Get<int8_t>();
     DataCopyPadParams pad{false, 0, 0, 0};
     DataCopyParams rows_copy{1, 42, 0, 0};
-    const uint32_t src_tile_cap = kDataBytes / 7;
+    const uint32_t src_tile_cap = kCase4I8SourceBytes / 7;
     const uint32_t tile_cap = MinU32(IndexTileCap(idx), src_tile_cap);
     const uint32_t core_num = GetBlockNum();
     const uint32_t cid = GetBlockIdx();

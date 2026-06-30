@@ -50,7 +50,18 @@ Conclusion: worse than bd40 by 25.736us. Pack2 reduces Case2 slightly but does n
 - Rationale: this matches the stable `Outer1`/`Pack2` writeback pattern and should reduce writeback overhead while lowering correctness risk from many non-contiguous scalar GM stores.
 - Package: `IndexAdd_v95_pack4_datacopy_store.zip`
 - SHA256: `23b0dcbe59a1c30af3b7ef40c6fb85334fd60469200f2cdeca0abbf40f5a556c`
-- Status: submitted at 2026-06-30 15:27:47, waiting for official result.
+- Official result:
+
+```text
+Case1: Pass, Result: 40.1
+Case2: Pass, Result: 12591.652
+Case3: Pass, Result: 60715.208
+Case4: Pass, Result: 1729338.12
+Case5: Pass, Result: 15626.452
+prof_sum: 1818311.532
+```
+
+Conclusion: full pass and much better than bd40/v93, mainly from Case4. Still slightly slower than the best known 1.818158s result, so continue tuning.
 
 ## v96 pack4-workunits
 
@@ -58,4 +69,20 @@ Conclusion: worse than bd40 by 25.736us. Pack2 reduces Case2 slightly but does n
 - Rationale: for the likely `(2,3,4,5,6,7)` case4 shape, this maps 120 outer rows to 30 pack4 groups and avoids launching extra idle cores.
 - Package: `IndexAdd_v96_pack4_workunits.zip`
 - SHA256: `ce257bbe9c82c3c706819690daa7b6c20deaa1742c577ad2d993b1336c694115`
-- Status: built; submit after v95 official result is captured.
+- Status: submitted at 2026-06-30 15:37:36, waiting for official result.
+
+## v97 outer1-src32k
+
+- Change: restore the stable `Outer1` case4 int8 dispatch before `Pack2`/`Pack4`, keep host `work_units = outer`, and enlarge only the case4 int8 `src_buf_` from 16KB to 32KB.
+- Rationale: Pack2 did not improve official Case4. A larger source tile keeps the proven one-outer register accumulation but roughly halves tile-loop overhead for large `index_len`.
+- Package: `IndexAdd_v97_outer1_src32k.zip`
+- SHA256: `196a6b4a2e2249d4b28ed9af8089afe8cffa4b28a313d689c4e542758138dec6`
+- Status: built but superseded before submit; package inspection showed the real `Outer1` tile cap still used the old 16KB constant.
+
+## v98 outer1-src32k-tilecap
+
+- Change: fix v97 by applying the 32KB source tile cap to `ProcessCase4Outer1Int8()` itself.
+- Rationale: this is the intended safe tile-loop reduction for the stable outer1 path.
+- Package: `IndexAdd_v98_outer1_src32k_tilecap.zip`
+- SHA256: `cbe1120fdd117d02eafe76fcfde789df38c8a500b500da3ca728b6b1ffd714e3`
+- Status: built; submit after v96 official result is captured.
