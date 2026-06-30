@@ -24,3 +24,9 @@ Conclusion: stable, but Case4 dominates. Further work should prioritize Case4 wh
 - Change: try `ProcessCase4Pack2Int8()` before the stable `Outer1` case4 int8 path.
 - Rationale: the previous dispatch order made `Pack2` unreachable for int32-index case4 with even `outer`; this candidate tests whether processing two outer rows per tile reduces Case4 overhead.
 - Status: building/evaluating.
+
+## v94 pack4-priority
+
+- Change: enable the existing `ProcessCase4Pack4Int8()` implementation and dispatch it before `Pack2`/`Outer1` when `outer` is divisible by 4.
+- Rationale: Case4 likely has `outer=120`, so Pack4 can reuse one index scan across four outer rows and may cut branch/index overhead further than v93.
+- Status: build only until v93 official result is captured.

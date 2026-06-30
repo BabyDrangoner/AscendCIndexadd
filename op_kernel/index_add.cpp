@@ -166,6 +166,10 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
+    if (UseCase4Int8Pack4Path()) {
+      ProcessCase4Pack4Int8();
+      return;
+    }
     if (UseCase4Int8Pack2Path()) {
       ProcessCase4Pack2Int8();
       return;
@@ -1213,7 +1217,6 @@ class IndexAddKernel {
     }
   }
 
-#if 0
   __aicore__ inline void ProcessCase4Pack4Int8() {
     LocalTensor<int32_t> idx = index32_buf_.Get<int32_t>();
     LocalTensor<int8_t> src0 = src_buf_.Get<int8_t>();
@@ -1346,8 +1349,6 @@ class IndexAddKernel {
 #undef STORE_I8P4_ACC
     }
   }
-#endif
-
   template <typename IdxT>
   __aicore__ inline void ProcessCase4Pack4Fp32(LocalTensor<IdxT>& idx) {
     LocalTensor<float> src0 = src_buf_.Get<float>();
