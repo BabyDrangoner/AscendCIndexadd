@@ -189,3 +189,12 @@ Conclusion: invalid candidate. Because every case failed, including non-Case4 sh
 - SHA256: `78b651db31e0811a4e89cc09b32820f65c0a5ec536ceab99f5cec4b7cb136a23`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-06-30 21:10:34 CST, workId `0000019F18A72258B015AC545AD243F4`.
+
+## v129 kfc-workspace-all-m64
+
+- Change: keep v128's always-register lifecycle fix, and allocate the per-block GM-B/C user workspace for all runtime shapes instead of only the exact dense Case4 shape.
+- Rationale: if v128 still fails non-dense cases, the next likely issue is a null or undersized workspace pointer when `REGIST_MATMUL_OBJ` runs on fallback shapes. This candidate isolates that variable.
+- Package: `IndexAdd_v129_kfc_workspace_all_m64.zip`
+- SHA256: `2d6b54f01e2488c564469599698c6e1d08311390801be855ff6f758c781fe50a`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: not submitted yet. Submit only if v128 result indicates workspace-related failure.
