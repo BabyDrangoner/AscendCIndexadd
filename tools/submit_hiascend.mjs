@@ -14,8 +14,8 @@ function usage() {
   console.log(`Submit a CANN operator zip to the HiAscend contest through HTTP APIs.
 
 Usage:
-  ./scripts/submit_hiascend.sh --zip /path/to/Concat.zip --cookie 'name=value; ...'
-  HIASCEND_COOKIE='name=value; ...' ./scripts/submit_hiascend.sh --zip /path/to/Concat.zip
+  ./tools/submit_hiascend.sh --zip /path/to/IndexAdd.zip --cookie 'name=value; ...'
+  HIASCEND_COOKIE='name=value; ...' ./tools/submit_hiascend.sh --zip /path/to/IndexAdd.zip
 
 Options:
   --zip FILE             Zip or run package to upload and submit
@@ -347,4 +347,3 @@ main().catch((err) => {
   console.error(err?.stack || err?.message || String(err));
   process.exit(1);
 });
-

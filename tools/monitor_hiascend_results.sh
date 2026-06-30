@@ -15,5 +15,4 @@ if [[ -z "$NODE_BIN" ]]; then
   fi
 fi
 
-exec "$NODE_BIN" "$ROOT_DIR/scripts/submit_hiascend.mjs" "$@"
-
+exec "$NODE_BIN" "$ROOT_DIR/tools/monitor_hiascend_results.mjs" "$@"

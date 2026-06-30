@@ -132,10 +132,10 @@ if [[ "$USE_MODE" == "lima" ]]; then
   VM_SCRIPT="$VM_WORK/container_build.sh"
   "$LIMACTL" shell "$LIMA_INSTANCE" -- rm -rf "$VM_WORK"
   "$LIMACTL" shell "$LIMA_INSTANCE" -- mkdir -p "$VM_WORK" "$VM_OUT"
-  "$LIMACTL" copy "$SRC_COPY" "$LIMA_INSTANCE:$VM_SRC"
+  "$LIMACTL" copy "$SRC_COPY" "$LIMA_INSTANCE:$VM_WORK/"
   "$LIMACTL" copy "$CONTAINER_SCRIPT" "$LIMA_INSTANCE:$VM_SCRIPT"
   "$LIMACTL" shell "$LIMA_INSTANCE" -- chmod +x "$VM_SCRIPT"
-  "$LIMACTL" shell "$LIMA_INSTANCE" -- chmod -R a+rX "$VM_SRC"
+  "$LIMACTL" shell "$LIMA_INSTANCE" -- chmod -R a+rwX "$VM_SRC"
   "$LIMACTL" shell "$LIMA_INSTANCE" -- chmod a+rwx "$VM_OUT"
   "$LIMACTL" shell "$LIMA_INSTANCE" -- docker run \
     --rm \

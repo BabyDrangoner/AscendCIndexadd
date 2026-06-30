@@ -10,8 +10,8 @@ function usage() {
   console.log(`Monitor HiAscend contest submission and ranking result.
 
 Usage:
-  ./scripts/monitor_hiascend_results.sh --topic IndexAdd --team 'TEAM_NAME'
-  ./scripts/monitor_hiascend_results.sh --once --topic IndexAdd --team 'TEAM_NAME'
+  ./tools/monitor_hiascend_results.sh --topic IndexAdd --team 'TEAM_NAME'
+  ./tools/monitor_hiascend_results.sh --once --topic IndexAdd --team 'TEAM_NAME'
 
 Options:
   --topic TOPIC          Contest topic, for example IndexAdd
