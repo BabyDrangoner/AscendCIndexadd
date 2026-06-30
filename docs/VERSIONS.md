@@ -86,3 +86,11 @@ Conclusion: full pass and much better than bd40/v93, mainly from Case4. Still sl
 - Package: `IndexAdd_v98_outer1_src32k_tilecap.zip`
 - SHA256: `cbe1120fdd117d02eafe76fcfde789df38c8a500b500da3ca728b6b1ffd714e3`
 - Status: built; submit after v96 official result is captured.
+
+## v99 pack4-src32k
+
+- Change: return to v95-style Pack4 priority and 40-core host scheduling, but allocate 32KB buffers for all four Pack4 source tiles and use a 32KB Pack4 tile cap.
+- Rationale: v95 proved Pack4 full-pass and improved Case4; larger tiles should reduce per-tile index/source copy and branch overhead without changing arithmetic.
+- Package: `IndexAdd_v99_pack4_src32k.zip`
+- SHA256: `a64d78f9c45a9a8b349a3ee32d90eddb01d6b960abd171642e6ddc0382007d16`
+- Status: built; submit after v96 official result is captured.
