@@ -140,8 +140,19 @@ Conclusion: invalid candidate. The failure affected every case, which points to 
 - Package: `IndexAdd_v124_kfc_dense_gma.zip`
 - SHA256: `6bba2950e06c1c0d69f738123cbe675fc4db8814b3195d7cbf9c12126cad6bc0`
 - Verification: Docker/Lima build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: 2026-06-30 20:37:25 CST, workId `0000019F1888C3ACB015AC3EE5AE3C75`.
 
-Pending conclusion: submit to check whether KFC registration avoids v122's all-case runtime failure and whether Case4 moves from scalar-bound 1.729s toward cube-bound performance.
+Official result:
+
+```text
+Case1: Run failed
+Case2: Run failed
+Case3: Run failed
+Case4: Run failed
+Case5: Run failed
+```
+
+Conclusion: invalid candidate. Because every case failed, including non-Case4 shapes that do not enter the dense arithmetic branch, the problem is the split-core KFC registration/quit path rather than GM-A math.
 
 ## v125 kfc-dense-gm-b
 
@@ -169,3 +180,12 @@ Pending conclusion: submit to check whether KFC registration avoids v122's all-c
 - SHA256: `32963265bf75260f5391f9685763f6cdb0e2b0d7becb38dcd72d3723cfc6266b`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: not submitted yet. Wait for the true v124 result first so the platform result is not overwritten.
+
+## v128 kfc-always-register-m64
+
+- Change: keep the v127 M=64 GM-B dense path, but initialize the dense tiling and execute `REGIST_MATMUL_OBJ` for every runtime shape. Only exact int8 Case4 sends Matmul work; non-dense shapes still register the KFC channel so AIC side can exit cleanly.
+- Rationale: v124 failed every case, which points to split-core registration/quit behavior rather than dense arithmetic. This candidate fixes the lifecycle issue before testing the M=64 dense algorithm.
+- Package: `IndexAdd_v128_kfc_always_register_m64.zip`
+- SHA256: `78b651db31e0811a4e89cc09b32820f65c0a5ec536ceab99f5cec4b7cb136a23`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: pending.
