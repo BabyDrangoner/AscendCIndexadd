@@ -158,13 +158,11 @@ class IndexAddKernel {
     const bool case4_i8_pack3 = UseCase4Int8Pack3Path();
     const bool case4_i8_pack4 = UseCase4Int8Pack4Path();
     const uint32_t src_buf_bytes =
-        (case4_i8_pack3 || case4_i8_pack4 || UseCase4Int8Outer1Path())
+        (case4_i8_pack4 || UseCase4Int8Outer1Path())
             ? AlignUp32(kCase4I8SourceBytes)
             : buf_bytes;
     const uint32_t aux_buf_bytes =
-        (case4_i8_pack3 || case4_i8_pack4)
-            ? AlignUp32(kCase4I8SourceBytes)
-            : buf_bytes;
+        case4_i8_pack4 ? AlignUp32(kCase4I8SourceBytes) : buf_bytes;
     const uint32_t out_buf_bytes =
         case4_i8_pack4 ? AlignUp32(kCase4I8SourceBytes) : buf_bytes;
     pipe_.InitBuffer(src_buf_, src_buf_bytes);
@@ -1248,7 +1246,7 @@ class IndexAddKernel {
     LocalTensor<int8_t> row = out_buf_.Get<int8_t>();
     DataCopyPadParams pad{false, 0, 0, 0};
     DataCopyParams rows_copy{1, 42, 0, 0};
-    const uint32_t src_tile_cap = kCase4I8SourceBytes / 7;
+    const uint32_t src_tile_cap = kDataBytes / 7;
     const uint32_t tile_cap = MinU32(IndexTileCap32(), src_tile_cap);
     const uint32_t groups = outer_ / 3;
     const uint32_t core_num = GetBlockNum();

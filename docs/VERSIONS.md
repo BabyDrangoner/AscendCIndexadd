@@ -104,7 +104,18 @@ Conclusion: full pass but slower than v95 by 70.732us. Keep v95-style 40-core ho
 - Rationale: v95 proved Pack4 full-pass and improved Case4; larger tiles should reduce per-tile index/source copy and branch overhead without changing arithmetic.
 - Package: `IndexAdd_v99_pack4_src32k.zip`
 - SHA256: `a64d78f9c45a9a8b349a3ee32d90eddb01d6b960abd171642e6ddc0382007d16`
-- Status: submitted at 2026-06-30 15:46:39, waiting for official result.
+- Official result:
+
+```text
+Case1: Pass, Result: 41.648
+Case2: Pass, Result: 12600.94
+Case3: Pass, Result: 60737.952
+Case4: Pass, Result: 1812401.736
+Case5: Pass, Result: 15620.06
+prof_sum: 1901402.336
+```
+
+Conclusion: full pass, but worse than v95 by 83090.804us. The 32KB Pack4 tile hurts Case4, so do not continue increasing the Pack4 tile size.
 
 ## v100 pack3-src32k
 
@@ -121,3 +132,11 @@ Conclusion: full pass but slower than v95 by 70.732us. Keep v95-style 40-core ho
 - Package: `IndexAdd_v101_pack3_row16.zip`
 - SHA256: `ad448feaed8682d7fa15156abbb93a65922e7f5a3c4d83ca39b42b8596459f3e`
 - Status: built; submit after v99 official result is captured.
+
+## v102 pack3-src16k
+
+- Change: keep Pack3 priority and row16, but use the original 16KB source tiles for Pack3.
+- Rationale: separates Pack3 scheduling/core-occupancy effects from the larger 32KB tile and UB pressure.
+- Package: `IndexAdd_v102_pack3_src16k.zip`
+- SHA256: `49f9137d447bc3a7d1d63c17b2ca0721d355b82a3d3e4ca169921e748213f6a3`
+- Status: built; submit after Pack3 32KB candidate if needed.
