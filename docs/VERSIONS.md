@@ -233,4 +233,5 @@ Conclusion: full pass but much worse than v95. Reducing Pack4 source tile to 8KB
 - Package: `IndexAdd_v109_pack4_packed16k.zip`
 - SHA256: `e48cbd0451e7c7b00db005c7a671aa992b316ab731c420d25e3a283cfdc96e07`
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`11fe6ec19b9cbf87bb62b9632ac356dad03589487e8ec8d87bde1aa34b5cb684`).
-- Status: built; submit next.
+- Submit: 2026-06-30 16:42:01, workId `0000019F17B13F43B0139C2F275482B8`.
+- Status: submitted; waiting for official result.
