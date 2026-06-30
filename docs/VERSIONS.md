@@ -234,7 +234,18 @@ Conclusion: full pass but much worse than v95. Reducing Pack4 source tile to 8KB
 - SHA256: `e48cbd0451e7c7b00db005c7a671aa992b316ab731c420d25e3a283cfdc96e07`
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`11fe6ec19b9cbf87bb62b9632ac356dad03589487e8ec8d87bde1aa34b5cb684`).
 - Submit: 2026-06-30 16:42:01, workId `0000019F17B13F43B0139C2F275482B8`.
-- Status: submitted; waiting for official result.
+- Official result:
+
+```text
+Case1: Pass, Result: 40.36
+Case2: Pass, Result: 12627.048
+Case3: Pass, Result: 60912.82
+Case4: Pass, Result: 1812570.764
+Case5: Pass, Result: 15616.54
+prof_sum: 1901767.532
+```
+
+Conclusion: full pass, but still worse than v95 by 83456.0us. Packed byte accumulation alone reduces some scalar register work but does not remove the dominant repeated index handling in Case4.
 
 ## v110 pack4-packed20k
 
@@ -244,3 +255,12 @@ Conclusion: full pass but much worse than v95. Reducing Pack4 source tile to 8KB
 - SHA256: `b6c27299dcede27303f973a322a61ccffcee121c7c10b92bf136d0d37d3ebf22`
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`41c458da37f356c55e93a6ef0d600b6d30d332b3853aced7f980492837b7fb17`).
 - Status: built; submit only if v109 is correct and promising.
+
+## v111 pack4-pos-packed16k
+
+- Change: add a Case4 int8 Pack4 position-list path before the normal Pack4 path. Each core precomputes six shared `index -> position` lists once, then reuses those lists for all four-row Pack4 groups assigned to that core.
+- Rationale: the profile shows Case4 is scalar-pipe bound (`aiv_scalar_ratio ~= 0.985`) and the index vector is shared across all outer rows. This candidate attacks repeated per-outer index decoding while keeping the v109 packed int8 accumulator.
+- Package: `IndexAdd_v111_pack4_pos_packed16k.zip`
+- SHA256: `241815b55768b656b3fccddfdbf57e67c8b2d94dc616b00b06518ae8bc1b12a0`
+- Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`a388d2d137151a2e7782c879900c042a468d339428a5f7bf834922f777878388`).
+- Status: built; next submit candidate.
