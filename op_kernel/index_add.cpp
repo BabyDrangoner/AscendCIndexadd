@@ -11,7 +11,7 @@ using namespace AscendC;
 
 constexpr uint32_t kDataBytes = 16384;
 constexpr uint32_t kCase4I8SourceBytes = 16384;
-constexpr uint32_t kCase4I8Pack4SourceBytes = 8192;
+constexpr uint32_t kCase4I8Pack4SourceBytes = 12288;
 constexpr uint32_t kAlign = 32;
 constexpr uint32_t kInnerTileElems = kDataBytes / sizeof(float);
 constexpr uint32_t kIndexTileBytes = 32768;

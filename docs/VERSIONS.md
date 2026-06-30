@@ -194,4 +194,14 @@ Conclusion: full pass, but worse than v95 by 172756.656us and worse than v102 by
 - Package: `IndexAdd_v106_pack4_src8k.zip`
 - SHA256: `d9e440d7c8f1ef93d10fd03bc0c2a1b009543925d0858a1b7da7b0e0564fbd9f`
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`89d6512568039f883c2036f65e250ccd1103a27e2ccaf637b4948e21a83330de`).
-- Status: built; submit after v103 result is captured or if we decide to overwrite the pending run.
+- Submit: 2026-06-30 16:26:50, workId `0000019F17A3573EB01156FB7EA919F4`.
+- Status: submitted; waiting for official result.
+
+## v107 pack4-src12k
+
+- Change: keep the v106 Pack4-priority dispatch but increase the Pack4 source tile from 8KB to 12KB.
+- Rationale: parameter sweep between 8KB and the v95 16KB best-known point to determine whether smaller UB footprint or fewer tile loops dominates Case4.
+- Package: `IndexAdd_v107_pack4_src12k.zip`
+- SHA256: `f1882e6b434166ab1626a5fbca8a39d541c6eb81b4ece1f5abd96c17afaa7306`
+- Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`c54eaeb727580f50cca22fe9c47fe312b362252a36a828d44040d00cf0f753d7`).
+- Status: built; submit after v106 result is captured.
