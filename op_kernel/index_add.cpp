@@ -165,8 +165,10 @@ class IndexAddKernel {
         (case4_i8_pack3 || case4_i8_pack4)
             ? AlignUp32(kCase4I8SourceBytes)
             : buf_bytes;
+    const uint32_t out_buf_bytes =
+        case4_i8_pack4 ? AlignUp32(kCase4I8SourceBytes) : buf_bytes;
     pipe_.InitBuffer(src_buf_, src_buf_bytes);
-    pipe_.InitBuffer(out_buf_, aux_buf_bytes);
+    pipe_.InitBuffer(out_buf_, out_buf_bytes);
     pipe_.InitBuffer(acc_buf_, aux_buf_bytes);
     pipe_.InitBuffer(src_cast_buf_, aux_buf_bytes);
     if (index_dtype_size_ == 8) {

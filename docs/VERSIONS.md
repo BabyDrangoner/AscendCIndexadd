@@ -113,3 +113,11 @@ Conclusion: full pass but slower than v95 by 70.732us. Keep v95-style 40-core ho
 - Package: `IndexAdd_v100_pack3_src32k.zip`
 - SHA256: `24cf49f187ffa65d06b9db37619b454a08b37c224c4920bf7a3f519caaf073d8`
 - Status: built; submit after v99 official result is captured.
+
+## v101 pack3-row16
+
+- Change: keep v100 Pack3 source tiles at 32KB, but leave `out_buf_` at the normal 16KB for Pack3 because it only stages a 42-byte output row.
+- Rationale: reduce UB pressure without changing Pack3 arithmetic or tile size.
+- Package: `IndexAdd_v101_pack3_row16.zip`
+- SHA256: `ad448feaed8682d7fa15156abbb93a65922e7f5a3c4d83ca39b42b8596459f3e`
+- Status: built; submit after v99 official result is captured.
