@@ -375,4 +375,5 @@ Conclusion: full pass, but effectively tied with v115 and still in the 1.901s ba
 - Package: `IndexAdd_v118_case4_i8_float_maskreduce.zip`
 - SHA256: `bc23bf6f46abc45d618702eb3c83efbe44d33b7ffdc1538ac1585c4580d12f68`
 - Verification: top-level host source matches (`52775ae1a3152feabebcb8537931c7b34961dbf755207ece8b2e3d6a99fc286a`); top-level kernel source, run-package embedded kernel source, and local `op_kernel/index_add.cpp` match (`428cae49bb460988c06a827b1cdc289edd76f8b5f72bc295f1104b66c16a9727`).
-- Status: built; ready to submit after v117 pending state is recorded.
+- Submit: 2026-06-30 18:42:08, workId `0000019F181F3EDCB015A7BF7B3A7280`.
+- Status: submitted; waiting for official result.
