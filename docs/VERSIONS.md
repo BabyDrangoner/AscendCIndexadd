@@ -345,4 +345,24 @@ Conclusion: full pass. Case4 improves v113 by 200.292us, so the fp32 mask-reduce
 - SHA256: `e6381fc8f1938e3d299abb927e660ee5c1b228fcaf5c2f59bfcf1c0ed0c64c16`
 - Verification: top-level host source matches (`52775ae1a3152feabebcb8537931c7b34961dbf755207ece8b2e3d6a99fc286a`); top-level kernel source, run-package embedded kernel source, and local `op_kernel/index_add.cpp` match (`03ae775393ecd5d595f686b8a9162d8c624a7afbf969334413730dcae139273a`).
 - Submit: 2026-06-30 17:46:19, workId `0000019F17EC232DB014D7A794B39119`.
-- Status: submitted; waiting for official result.
+- Official result:
+
+```text
+Case1: Pass, Result: 37.8
+Case2: Pass, Result: 12824.328
+Case3: Pass, Result: 60790.108
+Case4: Pass, Result: 1812386.66
+Case5: Pass, Result: 15629.62
+prof_sum: 1901668.516
+```
+
+Conclusion: full pass, but effectively tied with v115 and still in the 1.901s band. Increasing the fp32 mask-reduce block cap does not move the dominant Case4 bottleneck; stop tuning this branch until the int8 Case4 path is back on the v95 baseline.
+
+## v117 restore-v95-pack4
+
+- Change: restore the int8 Case4 dispatch priority to the v95-style Pack4 path and restore `ProcessCase4Pack4Int8()` to its int32 accumulator implementation with `DataCopyPad` row writeback.
+- Rationale: v109-v116 replaced or bypassed the v95 Pack4 core with packed/cached/position-list experiments, all of which landed in the slower 1.901s band. This candidate reestablishes the known 1.818s baseline before attempting another algorithmic change.
+- Package: `IndexAdd_v117_restore_v95_pack4.zip`
+- SHA256: `f93ef986c48b19042f1fb9950bbf620e91995202cd17c94cd24b0b01db8afee1`
+- Verification: top-level host source matches (`52775ae1a3152feabebcb8537931c7b34961dbf755207ece8b2e3d6a99fc286a`); top-level kernel source, run-package embedded kernel source, and local `op_kernel/index_add.cpp` match (`e742a81c4f8b609ee9750b0dcfc1f45463969f02132db4d52340ade0586f6b96`).
+- Status: built; submit next.
