@@ -235,3 +235,12 @@ Conclusion: full pass but much worse than v95. Reducing Pack4 source tile to 8KB
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`11fe6ec19b9cbf87bb62b9632ac356dad03589487e8ec8d87bde1aa34b5cb684`).
 - Submit: 2026-06-30 16:42:01, workId `0000019F17B13F43B0139C2F275482B8`.
 - Status: submitted; waiting for official result.
+
+## v110 pack4-packed20k
+
+- Change: keep the v109 packed accumulator and increase the Pack4 source tile to 20KB.
+- Rationale: if packed accumulation reduces register/UB pressure enough, a larger tile may reduce loop count without reproducing the scalar 32KB regression.
+- Package: `IndexAdd_v110_pack4_packed20k.zip`
+- SHA256: `b6c27299dcede27303f973a322a61ccffcee121c7c10b92bf136d0d37d3ebf22`
+- Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`41c458da37f356c55e93a6ef0d600b6d30d332b3853aced7f980492837b7fb17`).
+- Status: built; submit only if v109 is correct and promising.
