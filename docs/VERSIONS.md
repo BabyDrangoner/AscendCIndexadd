@@ -69,7 +69,18 @@ Conclusion: full pass and much better than bd40/v93, mainly from Case4. Still sl
 - Rationale: for the likely `(2,3,4,5,6,7)` case4 shape, this maps 120 outer rows to 30 pack4 groups and avoids launching extra idle cores.
 - Package: `IndexAdd_v96_pack4_workunits.zip`
 - SHA256: `ce257bbe9c82c3c706819690daa7b6c20deaa1742c577ad2d993b1336c694115`
-- Status: submitted at 2026-06-30 15:37:36, waiting for official result.
+- Official result:
+
+```text
+Case1: Pass, Result: 39.592
+Case2: Pass, Result: 12627.62
+Case3: Pass, Result: 60725.28
+Case4: Pass, Result: 1729369.4
+Case5: Pass, Result: 15620.372
+prof_sum: 1818382.264
+```
+
+Conclusion: full pass but slower than v95 by 70.732us. Keep v95-style 40-core host scheduling for Pack4.
 
 ## v97 outer1-src32k
 
@@ -93,4 +104,12 @@ Conclusion: full pass and much better than bd40/v93, mainly from Case4. Still sl
 - Rationale: v95 proved Pack4 full-pass and improved Case4; larger tiles should reduce per-tile index/source copy and branch overhead without changing arithmetic.
 - Package: `IndexAdd_v99_pack4_src32k.zip`
 - SHA256: `a64d78f9c45a9a8b349a3ee32d90eddb01d6b960abd171642e6ddc0382007d16`
-- Status: built; submit after v96 official result is captured.
+- Status: submitted at 2026-06-30 15:46:39, waiting for official result.
+
+## v100 pack3-src32k
+
+- Change: add a Pack3 int8 case4 path before Pack4. For likely `outer=120`, this creates exactly 40 groups, keeping all 40 cores active while reusing each index scan across three outer rows.
+- Rationale: v95 Pack4 improved Case4 but only has 30 groups for `outer=120`; Pack3 trades less index reuse for better core occupancy and lower register pressure.
+- Package: `IndexAdd_v100_pack3_src32k.zip`
+- SHA256: `24cf49f187ffa65d06b9db37619b454a08b37c224c4920bf7a3f519caaf073d8`
+- Status: built; submit after v99 official result is captured.
