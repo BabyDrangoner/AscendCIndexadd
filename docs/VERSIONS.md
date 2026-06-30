@@ -142,3 +142,12 @@ Conclusion: invalid candidate. The failure affected every case, which points to 
 - Verification: Docker/Lima build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 
 Pending conclusion: submit to check whether KFC registration avoids v122's all-case runtime failure and whether Case4 moves from scalar-bound 1.729s toward cube-bound performance.
+
+## v125 kfc-dense-gm-b
+
+- Change: keep the v124 KFC dense-GM-A structure, but move the onehot B matrix from local B1 to per-block GM user workspace. The B matrix is zeroed with 16KB DMA chunks and filled with scalar onehot writes before `SetTensorB` uses a GM tensor.
+- Rationale: v124 is faster on paper but may depend on AIV-side local B1 behavior. v125 is a more conservative fallback if v124 fails due to B1/KFC client restrictions.
+- Package: `IndexAdd_v125_kfc_dense_gmb.zip`
+- SHA256: `bcecff0355d109e41728f016b95a0fa51926bba3a3371b77aa57e5ce567f038c`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: not submitted yet. Wait for the true v124 result first so the platform result is not overwritten.
