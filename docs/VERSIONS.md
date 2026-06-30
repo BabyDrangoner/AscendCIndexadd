@@ -264,7 +264,18 @@ Conclusion: full pass, but still worse than v95 by 83456.0us. Packed byte accumu
 - SHA256: `241815b55768b656b3fccddfdbf57e67c8b2d94dc616b00b06518ae8bc1b12a0`
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`a388d2d137151a2e7782c879900c042a468d339428a5f7bf834922f777878388`).
 - Submit: 2026-06-30 16:59:37, workId `0000019F17C15B62B0214B3CA1A2A016`.
-- Status: submitted; waiting for official result.
+- Official result:
+
+```text
+Case1: Pass, Result: 33.908
+Case2: Pass, Result: 12768.6
+Case3: Pass, Result: 60566.236
+Case4: Pass, Result: 1812631.892
+Case5: Pass, Result: 15617.56
+prof_sum: 1901618.196
+```
+
+Conclusion: full pass but still in the slower packed/position-list band, worse than v95 by 83306.664us. Preclassifying positions avoids repeated index decoding, but the resulting source gather order and packed byte arithmetic do not beat the v95 sequential int32 accumulator path.
 
 ## v112 pack4-block8
 
