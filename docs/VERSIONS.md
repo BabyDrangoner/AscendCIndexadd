@@ -294,7 +294,18 @@ Conclusion: full pass but still in the slower packed/position-list band, worse t
 - SHA256: `a05295cddaba71d3379f7bb9df995071d8d3e52d8b55b2004368d0df6019c4ba`
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`c40d038ca8f3634c2c61e3a6ee992235112adf0e006a31119f99bf398c200608`).
 - Submit: 2026-06-30 17:11:23, workId `0000019F17CC2207B014CF897630FCB6`.
-- Status: submitted; waiting for official result.
+- Official result:
+
+```text
+Case1: Pass, Result: 38.344
+Case2: Pass, Result: 12714.004
+Case3: Pass, Result: 60582.436
+Case4: Pass, Result: 1812610.072
+Case5: Pass, Result: 15617.412
+prof_sum: 1901562.268
+```
+
+Conclusion: full pass but still worse than v95 by 83250.736us. Caching the shared index without changing the scalar accumulation shape is not enough; the remaining bottleneck needs a real vectorized reduction path.
 
 ## v114 pack4-cachedidx-u8acc
 
@@ -304,3 +315,12 @@ Conclusion: full pass but still in the slower packed/position-list band, worse t
 - SHA256: `62f1ed6be4dc20cecdbca0e86dc483d5a32941c275e7998d9789e8a72ee0240f`
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`c3dafdaff68a095cf5f8165c43b9f3bb4f991120cef6000ebc8d2711b90c291f`).
 - Status: built; submit after v113 result is captured.
+
+## v115 case4-fp32-maskreduce
+
+- Change: add an exact-shape fp32 Case4 path for `axis == 6`, `inner == 7`, and `index_len == 1024`. The path expands the shared index into 512x7 tiles, precomputes 12 `CompareScalar(idx == axis)` masks once per core, then uses `Select(mask, src, 0)` plus aligned vector tree `Add` reductions from 512 rows down to 8 rows before a small scalar tail.
+- Rationale: the profile points to scalar execution as the Case4 bottleneck. This candidate tests the onehot-mask/vector-reduction idea directly while avoiding the known int32 `Select` compile failure and leaving the current full-pass int8 path untouched.
+- Package: `IndexAdd_v115_case4_fp32_maskreduce.zip`
+- SHA256: `2f986b8b1a444360ad5459c50e6d2cea811c2b1a00fb42c12b3a355473135922`
+- Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`03ae775393ecd5d595f686b8a9162d8c624a7afbf969334413730dcae139273a`).
+- Status: built; submit next to see whether hidden Case4 includes the fp32 exact shape.
