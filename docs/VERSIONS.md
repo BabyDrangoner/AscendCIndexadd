@@ -365,4 +365,5 @@ Conclusion: full pass, but effectively tied with v115 and still in the 1.901s ba
 - Package: `IndexAdd_v117_restore_v95_pack4.zip`
 - SHA256: `f93ef986c48b19042f1fb9950bbf620e91995202cd17c94cd24b0b01db8afee1`
 - Verification: top-level host source matches (`52775ae1a3152feabebcb8537931c7b34961dbf755207ece8b2e3d6a99fc286a`); top-level kernel source, run-package embedded kernel source, and local `op_kernel/index_add.cpp` match (`e742a81c4f8b609ee9750b0dcfc1f45463969f02132db4d52340ade0586f6b96`).
-- Status: built; submit next.
+- Submit: 2026-06-30 18:32:17, workId `0000019F18163AE8B0115CF0C2ACE2C8`.
+- Status: submitted; waiting for official result.
