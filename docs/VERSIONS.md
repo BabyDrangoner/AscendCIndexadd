@@ -195,7 +195,18 @@ Conclusion: full pass, but worse than v95 by 172756.656us and worse than v102 by
 - SHA256: `d9e440d7c8f1ef93d10fd03bc0c2a1b009543925d0858a1b7da7b0e0564fbd9f`
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`89d6512568039f883c2036f65e250ccd1103a27e2ccaf637b4948e21a83330de`).
 - Submit: 2026-06-30 16:26:50, workId `0000019F17A3573EB01156FB7EA919F4`.
-- Status: submitted; waiting for official result.
+- Official result:
+
+```text
+Case1: Pass, Result: 39.848
+Case2: Pass, Result: 12589.44
+Case3: Pass, Result: 61480.86
+Case4: Pass, Result: 1901336.872
+Case5: Pass, Result: 15615.52
+prof_sum: 1991062.54
+```
+
+Conclusion: full pass but much worse than v95. Reducing Pack4 source tile to 8KB increases tile-loop overhead and falls into the 1.991s band, so v107/v108 should be lower priority than an algorithmic change.
 
 ## v107 pack4-src12k
 
@@ -214,3 +225,12 @@ Conclusion: full pass, but worse than v95 by 172756.656us and worse than v102 by
 - SHA256: `790455b055b61070c93961550e8306ce7ca81a23f3bc0ebb9f187d78605474be`
 - Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`cdfa893495c3864e49309116d00ed594a2432afe2cf3fcd307ca10bb8ec68625`).
 - Status: built; submit after v106/v107 trend is known.
+
+## v109 pack4-packed16k
+
+- Change: replace the Case4 int8 Pack4 accumulator with packed 7-byte rows in `uint64_t`, using byte-wise modulo addition instead of 168 int32 scalar accumulators.
+- Rationale: int8 correctness only depends on the low 8 bits of each accumulated element. Packed byte addition should reduce register pressure and UB byte `GetValue` traffic while preserving modulo int8 semantics.
+- Package: `IndexAdd_v109_pack4_packed16k.zip`
+- SHA256: `e48cbd0451e7c7b00db005c7a671aa992b316ab731c420d25e3a283cfdc96e07`
+- Verification: top-level source, run-package embedded source, and local `op_kernel/index_add.cpp` match (`11fe6ec19b9cbf87bb62b9632ac356dad03589487e8ec8d87bde1aa34b5cb684`).
+- Status: built; submit next.
