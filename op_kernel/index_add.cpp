@@ -166,16 +166,16 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
+    if (UseCase4Int8Pack2Path()) {
+      ProcessCase4Pack2Int8();
+      return;
+    }
     if (UseCase4Int8Outer1Path()) {
       if (index_dtype_size_ == 8) {
         ProcessCase4Outer1Int864();
       } else {
         ProcessCase4Outer1Int832();
       }
-      return;
-    }
-    if (UseCase4Int8Pack2Path()) {
-      ProcessCase4Pack2Int8();
       return;
     }
     if (UseCase4Int8AlignedRowsPath()) {

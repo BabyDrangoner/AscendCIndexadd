@@ -18,3 +18,9 @@ prof_sum: 1912481.06
 ```
 
 Conclusion: stable, but Case4 dominates. Further work should prioritize Case4 while preserving Case2/3/5.
+
+## v93 pack2-priority
+
+- Change: try `ProcessCase4Pack2Int8()` before the stable `Outer1` case4 int8 path.
+- Rationale: the previous dispatch order made `Pack2` unreachable for int32-index case4 with even `outer`; this candidate tests whether processing two outer rows per tile reduces Case4 overhead.
+- Status: building/evaluating.
