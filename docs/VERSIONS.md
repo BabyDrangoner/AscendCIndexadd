@@ -792,7 +792,18 @@ Conclusion: full pass but still in the 1.81s Case4 band. Coarsening Pack16 input
 - SHA256: `5fd07584ca3603d06dcf089a1700aca48e4718655cccc6faf494bdf1651c3a89`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 17:11:43 CST, workId `IndexAdd_v172_pack16_src8_dma.zip`.
-- Official result: pending.
+- Official result:
+
+```text
+Case1: Pass, Result: 38.04
+Case2: Pass, Result: 12659.256
+Case3: Pass, Result: 60727.652
+Case4: Pass, Result: 1812595.172
+Case5: Pass, Result: 15394.812
+prof_sum: 1901414.932
+```
+
+Conclusion: full pass, but the two 8-block strided source DMA shape does not improve the hot Case4; the path is still dominated by scalar packed accumulation rather than source-copy command count.
 
 ## v173 case4-early-exit
 
