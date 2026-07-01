@@ -652,7 +652,18 @@ Conclusion: full pass but slightly worse than v160. Reducing in int16 preserves 
 - SHA256: `3d6d3c6ab4715f05d3fe47467a3a399a3baf8d9683ce4980543cce9587ac217e`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 15:37:56 CST, workId `IndexAdd_v162_atomic_i8_hotcase.zip`.
-- Official result: pending.
+- Official result:
+
+```text
+Case1: Pass, Result: 30.84
+Case2: Pass, Result: 12605.84
+Case3: Pass, Result: 60748.76
+Case4: Pass, Result: 1812378.432
+Case5: Pass, Result: 15607.136
+prof_sum: 1901371.008
+```
+
+Conclusion: full pass, proving direct int8 DMA atomic is legal on the platform. However, Case4 stays in the 1.812s band, so one atomic DMA command per source row is still too fine-grained to approach the leading solutions.
 
 ## v163 owner-atomic-i8
 
