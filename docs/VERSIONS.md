@@ -505,4 +505,4 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
   - Case4: 1729262.572us
   - Case5: 15619.984us
   - prof_sum: 1818241.364us
-- Conclusion: full pass and materially better than v192/v189, but still in the old v121/v148 Case4 band. The vector mask-reduce path helps, yet scanning each tile once per axis keeps the algorithm too close to the current ceiling.
+- Conclusion: full pass, but this result should be treated as a fallback Pack4 result, not a valid mask-reduce measurement. Rechecking host tiling shows Case4 shape `(2,3,4,5,6,7)` with `dim=4` has `outer=120`; the v194 exact guard used `outer_ == 8192`, so the new mask-reduce branch did not execute. Next candidates must use `outer_ == 120` to actually hit Case4.
