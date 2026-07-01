@@ -610,3 +610,12 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 15:25:27 CST, workId `IndexAdd_v161_gather_i16_reduce.zip`.
 - Official result: pending; as of 15:25 CST the ranking row still pointed to v151's `2026/07/01 14:23:54` `-1us` result.
+
+## v162 atomic-i8-hotcase
+
+- Change: add an exact hot Case4 source-major atomic path before the gather/reduce experiments. The path first copies `input` to `output`, calls `SyncAll<true>()`, then streams each outer's contiguous source tile from GM to UB and uses `SetAtomicAdd<int8_t>()` on 7-byte row writes into `output`.
+- Rationale: this directly tests the external recommendation's `copy self -> atomic scatter` algorithm on the dominant small-inner int8 case. CANN 8.5's 910B/c220 headers compile `SetAtomicAdd<int8_t>()`; this candidate checks whether direct 7-byte atomic `DataCopyPad` is valid and whether DMA atomic can move the hot loop out of scalar AIV arithmetic.
+- Package: `IndexAdd_v162_atomic_i8_hotcase.zip`
+- SHA256: `3d6d3c6ab4715f05d3fe47467a3a399a3baf8d9683ce4980543cce9587ac217e`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: pending.
