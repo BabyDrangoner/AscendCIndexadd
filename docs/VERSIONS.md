@@ -743,3 +743,13 @@ Conclusion: full pass, but no improvement over v162/v148. Moving `SetAtomicAdd<i
 - Verification: Docker build passed with normal generated op_api; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source; zip does not contain the v168 `op_host/fast/aclnn_index_add.cpp` shim.
 - Submit: 2026-07-01 16:47:26 CST, workId `IndexAdd_v169_pack16_bulk_dma.zip`.
 - Official result: pending; as of 16:47 CST the ranking row still pointed to v164's `2026/07/01 15:47:37` result.
+
+## v170 pack16-row-bulk
+
+- Change: keep v169's Pack16 priority and 16-row input/output bulk copy, but revert source tile reads to the proven one-contiguous-tile-per-outer `DataCopyPad` shape. This removes the multi-block strided source copy risk while still reducing Pack16 per-group small input/output DMA commands from 32 to 2.
+- Rationale: v169 is the higher-upside candidate, but its four-block strided GM->UB copy may have undocumented runtime constraints. v170 is a conservative fallback package to isolate whether input/output command coalescing helps without changing source tile layout.
+- Package: `IndexAdd_v170_pack16_row_bulk.zip`
+- SHA256: `4154040e9d75566b4268a799f692a216cd2ec701b2edfd9bcc2239c88a54b9e0`
+- Verification: Docker build passed with normal generated op_api; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source; zip does not contain the v168 op_api shim.
+- Submit: not submitted; keep as fallback while v169 evaluates.
+- Official result: pending.

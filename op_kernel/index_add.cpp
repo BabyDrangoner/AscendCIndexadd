@@ -2395,7 +2395,6 @@ class IndexAddKernel {
     constexpr uint32_t kSlotU64 = kSlotBytes >> 3;
     constexpr uint32_t kRowBytes = 42;
     constexpr uint32_t kBulkRowBytes = 16 * kRowBytes;
-    constexpr uint32_t kSrcTileBytes = kTile * 7;
     LocalTensor<int32_t> idx = index32_buf_.Get<int32_t>();
     LocalTensor<int8_t> src0 = src_buf_.Get<int8_t>();
     LocalTensor<int8_t> src1 = src_buf_.Get<int8_t>()[kSlotBytes];
@@ -2433,10 +2432,7 @@ class IndexAddKernel {
     LocalTensor<uint64_t> rowu = src0u;
     DataCopyPadParams pad{false, 0, 0, 0};
     DataCopyParams rows_copy{1, static_cast<uint16_t>(kBulkRowBytes), 0, 0};
-    DataCopyParams src4_copy{
-        4, static_cast<uint16_t>(kSrcTileBytes),
-        static_cast<uint16_t>(kSrcTileBytes),
-        static_cast<uint16_t>(kSlotBytes - kSrcTileBytes)};
+    DataCopyParams src_copy{1, static_cast<uint16_t>(kTile * 7), 0, 0};
     const uint32_t groups = outer_ >> 4;
     const uint32_t core_num = GetBlockNum();
     const uint32_t cid = GetBlockIdx();
@@ -2502,13 +2498,37 @@ class IndexAddKernel {
 
       for (uint32_t base = 0; base < 1024; base += kTile) {
         DataCopyPad(src0, source_i8_gm_[SourceOffset(outer0, base, 0)],
-                    src4_copy, pad);
+                    src_copy, pad);
+        DataCopyPad(src1, source_i8_gm_[SourceOffset(outer1, base, 0)],
+                    src_copy, pad);
+        DataCopyPad(src2, source_i8_gm_[SourceOffset(outer2, base, 0)],
+                    src_copy, pad);
+        DataCopyPad(src3, source_i8_gm_[SourceOffset(outer3, base, 0)],
+                    src_copy, pad);
         DataCopyPad(src4, source_i8_gm_[SourceOffset(outer4, base, 0)],
-                    src4_copy, pad);
+                    src_copy, pad);
+        DataCopyPad(src5, source_i8_gm_[SourceOffset(outer5, base, 0)],
+                    src_copy, pad);
+        DataCopyPad(src6, source_i8_gm_[SourceOffset(outer6, base, 0)],
+                    src_copy, pad);
+        DataCopyPad(src7, source_i8_gm_[SourceOffset(outer7, base, 0)],
+                    src_copy, pad);
         DataCopyPad(src8, source_i8_gm_[SourceOffset(outer8, base, 0)],
-                    src4_copy, pad);
+                    src_copy, pad);
+        DataCopyPad(src9, source_i8_gm_[SourceOffset(outer9, base, 0)],
+                    src_copy, pad);
+        DataCopyPad(src10, source_i8_gm_[SourceOffset(outer10, base, 0)],
+                    src_copy, pad);
+        DataCopyPad(src11, source_i8_gm_[SourceOffset(outer11, base, 0)],
+                    src_copy, pad);
         DataCopyPad(src12, source_i8_gm_[SourceOffset(outer12, base, 0)],
-                    src4_copy, pad);
+                    src_copy, pad);
+        DataCopyPad(src13, source_i8_gm_[SourceOffset(outer13, base, 0)],
+                    src_copy, pad);
+        DataCopyPad(src14, source_i8_gm_[SourceOffset(outer14, base, 0)],
+                    src_copy, pad);
+        DataCopyPad(src15, source_i8_gm_[SourceOffset(outer15, base, 0)],
+                    src_copy, pad);
         PipeBarrier<PIPE_MTE2>();
 
         for (uint32_t i = 0; i < kTile; i += 2) {
