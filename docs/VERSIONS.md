@@ -543,3 +543,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `659cc38f1bae48213ba2b8d93bc8c7a35eb009688774e86da1803055a3d257f2`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: not submitted.
+
+## v201 maskreduce-block24
+
+- Change: keep v200's exact Case4 mask-reduce kernel, but lower the exact Case4 host block cap from 40 to 24.
+- Rationale: every mask-reduce core rebuilds the 12 onehot masks in UB. Case4 has only 120 outer rows, so 40 cores give three rows per core and duplicate the scalar mask setup 40 times. This candidate trades some parallelism for less duplicated setup work while staying on the non-atomic vector-reduction algorithm.
+- Package: `IndexAdd_v201_maskreduce_block24.zip`
+- SHA256: `3b5bcb95a525e1664ba340a58e575b3fba35817eca6d74c6e504d8e6361b8393`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted.
