@@ -716,6 +716,15 @@ Conclusion: full pass, but no improvement over v162/v148. Moving `SetAtomicAdd<i
 - Submit: 2026-07-01 18:46:24 CST, workId `IndexAdd_v182_opapi_private_marker.zip`.
 - Official result: pending; as of 18:46 CST the ranking row still pointed to v172's `2026/07/01 17:11:35` result.
 
+## v184 row-gather-priority
+
+- Change: keep v182's op_api private-marker wrapper, but move `ProcessCase4GatherRowsI16ReduceInt8()` ahead of the Pack16 pair2 Case4 dispatch. This re-tests the row-gather reduce algorithm that v167 uploaded but never clearly received an official result before later submissions overwrote the work row.
+- Rationale: row-gather expands the shared index once into row offsets and uses 12 gather/reduce buckets per outer instead of 1024 source-order scalar dispatches. It is the most concrete non-KFC path left that can break the Pack4/Pack8/Pack16 scalar dispatch ceiling, even though it pays cast/gather overhead.
+- Package: `IndexAdd_v184_row_gather_priority.zip`
+- SHA256: `1dbfd589e10b4ca9a5bf21c04e094582800de67cfafad4edb76cac75a068fa89`
+- Verification: Docker build passed; zip top-level host/kernel/fast op_api sources match local files; run-package embedded `index_add.cpp` matches local kernel source.
+- Submit: not submitted; hold until v182 op_api marker result is known.
+
 ## v166 workspace-atomic-packed
 
 - Change: keep v165's exact hot Case4 32B workspace atomic algorithm, but pack each 7-byte int8 row through `uint64_t` helpers before the 32B atomic write. Workspace initialization and source scatter now use packed row construction instead of seven scalar `GetValue`/`SetValue` pairs per row; final compaction also uses packed 7-byte loads.
