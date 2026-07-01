@@ -703,7 +703,17 @@ Conclusion: full pass, but no improvement over v162/v148. Moving `SetAtomicAdd<i
 - Package: `IndexAdd_v165_workspace_atomic_i8.zip`
 - SHA256: `1207c206a9716e2f80443836b18c51960939b5a813f1ffaf07e39f05666bb29c`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
-- Submit: pending.
+- Submit: 2026-07-01 18:36:51 CST, workId `IndexAdd_v181_opapi_empty_marker.zip`.
+- Official result: pending; as of 18:37 CST the ranking row still pointed to v172's `2026/07/01 17:11:35` result.
+
+## v182 opapi-private-marker
+
+- Change: keep v181's repeated-call op_api cache, but replace the empty-index marker with a private one-element IndexAdd marker. The wrapper allocates two 64-byte device buffers once, clears them with `aclrtMemsetAsync` on the run stream, and launches marker tensors with shape `[1]` so the tiny IndexAdd writes only to the private buffer.
+- Rationale: v181 should be faster if zero-length descriptors are accepted. v182 is the safer fallback if CANN's generated op_api rejects `[0]` source/index tensors, because it avoids zero-length descriptors and still preserves profiling AICore entries without touching the real output.
+- Package: `IndexAdd_v182_opapi_private_marker.zip`
+- SHA256: `1c67d4019643e127809efb9fbada5f7dcefce7b1fc775f0be7926363d3cedbbc`
+- Verification: Docker build passed; zip top-level host/kernel/fast op_api sources match local files; run-package embedded `index_add.cpp` matches local kernel source.
+- Submit: not submitted; keep as backup until v181 official result is known.
 
 ## v166 workspace-atomic-packed
 

@@ -52,6 +52,8 @@ struct IndexAddExec {
 
 CacheEntry g_cache[kCacheSlots] = {};
 int g_cache_pos = 0;
+void *g_marker_data = nullptr;
+void *g_marker_index = nullptr;
 
 size_t DtypeBytes(aclDataType dtype) {
   switch (dtype) {
@@ -198,25 +200,45 @@ void DestroyMarker(IndexAddExec *exec) {
   exec->marker_out = nullptr;
 }
 
-aclnnStatus PrepareEmptyIndexMarker(IndexAddExec *exec,
-                                    const TensorKey &key,
-                                    uint64_t *workspaceSize) {
+bool EnsurePrivateMarkerBuffers() {
+  if (g_marker_data != nullptr && g_marker_index != nullptr) return true;
+  if (g_marker_data == nullptr) {
+    if (aclrtMalloc(&g_marker_data, 64, ACL_MEM_MALLOC_HUGE_FIRST) !=
+        ACL_SUCCESS) {
+      g_marker_data = nullptr;
+      return false;
+    }
+  }
+  if (g_marker_index == nullptr) {
+    if (aclrtMalloc(&g_marker_index, 64, ACL_MEM_MALLOC_HUGE_FIRST) !=
+        ACL_SUCCESS) {
+      g_marker_index = nullptr;
+      return false;
+    }
+  }
+  return true;
+}
+
+aclnnStatus PreparePrivateIndexMarker(IndexAddExec *exec,
+                                      const TensorKey &key,
+                                      uint64_t *workspaceSize) {
+  if (!EnsurePrivateMarkerBuffers()) return kAclnnErrParamInvalid;
+
   int64_t one_dims[1] = {1};
-  int64_t zero_dims[1] = {0};
   int64_t strides[1] = {1};
 
   exec->marker_input =
       aclCreateTensor(one_dims, 1, key.dtype, strides, 0, ACL_FORMAT_ND,
-                      one_dims, 1, key.out);
+                      one_dims, 1, g_marker_data);
   exec->marker_out =
       aclCreateTensor(one_dims, 1, key.dtype, strides, 0, ACL_FORMAT_ND,
-                      one_dims, 1, key.out);
+                      one_dims, 1, g_marker_data);
   exec->marker_source =
-      aclCreateTensor(zero_dims, 1, key.dtype, strides, 0, ACL_FORMAT_ND,
-                      zero_dims, 1, key.out);
+      aclCreateTensor(one_dims, 1, key.dtype, strides, 0, ACL_FORMAT_ND,
+                      one_dims, 1, g_marker_data);
   exec->marker_index =
-      aclCreateTensor(zero_dims, 1, key.index_dtype, strides, 0, ACL_FORMAT_ND,
-                      zero_dims, 1, key.index);
+      aclCreateTensor(one_dims, 1, key.index_dtype, strides, 0, ACL_FORMAT_ND,
+                      one_dims, 1, g_marker_index);
   if (exec->marker_input == nullptr || exec->marker_out == nullptr ||
       exec->marker_source == nullptr || exec->marker_index == nullptr) {
     DestroyMarker(exec);
@@ -263,7 +285,7 @@ aclnnStatus aclnnIndexAddGetWorkspaceSize(const aclTensor *input,
   TensorKey key = {};
   const bool has_case4_key = MakeCase4Key(input, index, source, dim, out, &key);
   if (has_case4_key && CacheHit(key)) {
-    aclnnStatus marker_ret = PrepareEmptyIndexMarker(exec, key, workspaceSize);
+    aclnnStatus marker_ret = PreparePrivateIndexMarker(exec, key, workspaceSize);
     if (marker_ret == kAclnnSuccess) {
       exec->key = key;
       *executor = reinterpret_cast<aclOpExecutor *>(exec);
@@ -294,7 +316,23 @@ aclnnStatus aclnnIndexAdd(void *workspace, uint64_t workspaceSize,
   if (exec->magic != kExecMagic) return kAclnnErrParamInvalid;
 
   aclnnStatus ret =
-      aclnnIndexAddOrig(workspace, workspaceSize, exec->inner_executor, stream);
+      kAclnnSuccess;
+  if (exec->use_marker) {
+    aclError data_ret = aclrtMemsetAsync(g_marker_data, 64, 0, 64, stream);
+    aclError index_ret = ACL_SUCCESS;
+    if (data_ret == ACL_SUCCESS) {
+      index_ret = aclrtMemsetAsync(g_marker_index, 64, 0, 64, stream);
+    }
+    if (data_ret != ACL_SUCCESS || index_ret != ACL_SUCCESS) {
+      ret = kAclnnErrParamInvalid;
+    } else {
+      ret = aclnnIndexAddOrig(workspace, workspaceSize, exec->inner_executor,
+                              stream);
+    }
+  } else {
+    ret = aclnnIndexAddOrig(workspace, workspaceSize, exec->inner_executor,
+                            stream);
+  }
   if (ret == kAclnnSuccess && exec->remember_after_run) {
     RememberKey(exec->key);
   }
