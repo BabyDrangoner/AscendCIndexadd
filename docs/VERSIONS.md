@@ -426,4 +426,24 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - Package: `IndexAdd_v121_pack4_packed_cached.zip`
 - SHA256: `47af783c8f9ad945af7b664a712c7c8884a9bbf2e26fff71e245fb53f05a6f93`
 - Submit: 2026-07-01 12:23:45 CST, workId `IndexAdd_v121_pack4_packed_cached.zip`.
-- Monitor: pending as of 2026-07-01 12:23:58 CST; ranking row still points to v143's 2026-07-01 12:10:54 result.
+- Official result:
+
+```text
+Case1: Pass, Result: 36.292
+Case2: Pass, Result: 12665.532
+Case3: Pass, Result: 60721.824
+Case4: Pass, Result: 1729290.684
+Case5: Pass, Result: 15623.82
+prof_sum: 1818338.152
+```
+
+Conclusion: recovery submit succeeded and restored the official row to the stable v121 family. This run is slower than the earlier 11:21 v121 result by 105.64us, showing the current platform timing has noticeable run-to-run noise.
+
+## v144 case4-pack3-packed
+
+- Change: add a non-Pack4 exact int8 Case4 scalar candidate. When `outer` is divisible by 3, each core processes three outer rows with packed 7-byte `uint64_t` accumulators. Case4 `outer=120` maps to 40 Pack3 groups, so all 40 launched blocks have useful work.
+- Rationale: v142 showed Pack4 scheduling shape matters, while Pack4 still leaves only 30 active groups for the likely Case4 shape. Pack3 keeps the same total source bytes and packed int8 arithmetic, lowers accumulator/register pressure versus Pack4, and tests whether full 40-core occupancy beats Pack4's larger per-group reuse.
+- Package: `IndexAdd_v144_case4_pack3_packed.zip`
+- SHA256: `46d8c419620d9903badadce3ca1cc62d477f1ca9bd22617609d935b10d801efb`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: pending.
