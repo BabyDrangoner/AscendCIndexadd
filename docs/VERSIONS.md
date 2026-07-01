@@ -616,3 +616,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `280a1cbf781f1666f864249956bd72822040d7b570f6704f5965b2e7e7858957`
 - Verification: Docker build passed; top-level host/kernel source matches the zip.
 - Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
+
+## v215 gatherb-outer2-vecpartial-bd48
+
+- Change: keep v214's vectorized partial accumulation, but raise the exact int8 Case4 host block cap from 30 to 48.
+- Rationale: v214 removes the biggest remaining scalar block inside the Gatherb reduce path. v215 combines that with the more aggressive 48-block schedule, testing whether reduced main-loop iterations now outweigh the duplicated offset construction.
+- Package: `IndexAdd_v215_gatherb_outer2_vecpartial_bd48.zip`
+- SHA256: `434ced1878c413efa2dd1146b45259ceb072584767583ee24bb837d0108c42ab`
+- Verification: Docker build passed; top-level host/kernel source matches the zip.
+- Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
