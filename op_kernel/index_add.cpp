@@ -1304,7 +1304,9 @@ class IndexAddKernel {
     LocalTensor<int8_t> src_i8 = src_buf_.Get<int8_t>();
     LocalTensor<half> src_h = src_cast_buf_.Get<half>();
     LocalTensor<half> masked_h = out_buf_.Get<half>();
-    LocalTensor<half> partial = acc_buf_.Get<half>()[kCase4MaskReduceElems];
+    LocalTensor<int16_t> masked_i16 = acc_buf_.Get<int16_t>();
+    LocalTensor<int16_t> partial =
+        acc_buf_.Get<int16_t>()[kCase4MaskReduceElems];
     DataCopyPadParams pad{false, 0, 0, 0};
     DataCopyParams row_copy{1, 42, 0, 0};
     DataCopyParams src_copy{1, static_cast<uint16_t>(kCase4MaskReduceElems), 0,
@@ -1336,7 +1338,7 @@ class IndexAddKernel {
     const uint32_t cid = GetBlockIdx();
     for (uint32_t outer_id = cid; outer_id < outer_; outer_id += core_num) {
       for (uint32_t i = 0; i < kPartialElems; ++i) {
-        partial.SetValue(i, static_cast<half>(0));
+        partial.SetValue(i, static_cast<int16_t>(0));
       }
 
       for (uint32_t tile = 0; tile < 2; ++tile) {
@@ -1353,11 +1355,15 @@ class IndexAddKernel {
           Select(masked_h, masks[mask_off], src_h, static_cast<half>(0),
                  SELMODE::VSEL_TENSOR_SCALAR_MODE, kCase4MaskReduceElems);
           PipeBarrier<PIPE_V>();
+          Cast(masked_i16, masked_h, RoundMode::CAST_RINT,
+               kCase4MaskReduceElems);
+          PipeBarrier<PIPE_V>();
 
           for (uint32_t n = kCase4MaskReduceTile; n > 8; n >>= 1) {
             const uint32_t h = n >> 1;
             const uint32_t elems = h * 7;
-            Add(masked_h, masked_h, masked_h[elems], static_cast<int32_t>(elems));
+            Add(masked_i16, masked_i16, masked_i16[elems],
+                static_cast<int32_t>(elems));
             PipeBarrier<PIPE_V>();
           }
 
@@ -1366,33 +1372,26 @@ class IndexAddKernel {
             const uint32_t row_off = r * 7;
             const uint32_t part_off = partial_base + row_off;
             partial.SetValue(part_off + 0,
-                             static_cast<half>(
-                                 static_cast<float>(partial.GetValue(part_off + 0)) +
-                                 static_cast<float>(masked_h.GetValue(row_off + 0))));
+                             static_cast<int16_t>(partial.GetValue(part_off + 0) +
+                                                  masked_i16.GetValue(row_off + 0)));
             partial.SetValue(part_off + 1,
-                             static_cast<half>(
-                                 static_cast<float>(partial.GetValue(part_off + 1)) +
-                                 static_cast<float>(masked_h.GetValue(row_off + 1))));
+                             static_cast<int16_t>(partial.GetValue(part_off + 1) +
+                                                  masked_i16.GetValue(row_off + 1)));
             partial.SetValue(part_off + 2,
-                             static_cast<half>(
-                                 static_cast<float>(partial.GetValue(part_off + 2)) +
-                                 static_cast<float>(masked_h.GetValue(row_off + 2))));
+                             static_cast<int16_t>(partial.GetValue(part_off + 2) +
+                                                  masked_i16.GetValue(row_off + 2)));
             partial.SetValue(part_off + 3,
-                             static_cast<half>(
-                                 static_cast<float>(partial.GetValue(part_off + 3)) +
-                                 static_cast<float>(masked_h.GetValue(row_off + 3))));
+                             static_cast<int16_t>(partial.GetValue(part_off + 3) +
+                                                  masked_i16.GetValue(row_off + 3)));
             partial.SetValue(part_off + 4,
-                             static_cast<half>(
-                                 static_cast<float>(partial.GetValue(part_off + 4)) +
-                                 static_cast<float>(masked_h.GetValue(row_off + 4))));
+                             static_cast<int16_t>(partial.GetValue(part_off + 4) +
+                                                  masked_i16.GetValue(row_off + 4)));
             partial.SetValue(part_off + 5,
-                             static_cast<half>(
-                                 static_cast<float>(partial.GetValue(part_off + 5)) +
-                                 static_cast<float>(masked_h.GetValue(row_off + 5))));
+                             static_cast<int16_t>(partial.GetValue(part_off + 5) +
+                                                  masked_i16.GetValue(row_off + 5)));
             partial.SetValue(part_off + 6,
-                             static_cast<half>(
-                                 static_cast<float>(partial.GetValue(part_off + 6)) +
-                                 static_cast<float>(masked_h.GetValue(row_off + 6))));
+                             static_cast<int16_t>(partial.GetValue(part_off + 6) +
+                                                  masked_i16.GetValue(row_off + 6)));
           }
         }
       }
@@ -1407,7 +1406,7 @@ class IndexAddKernel {
           int32_t sum = static_cast<int32_t>(src_i8.GetValue(dst_base + w));
           for (uint32_t r = 0; r < 8; ++r) {
             sum += static_cast<int32_t>(
-                static_cast<float>(partial.GetValue(partial_base + r * 7 + w)));
+                partial.GetValue(partial_base + r * 7 + w));
           }
           src_i8.SetValue(dst_base + w, static_cast<int8_t>(sum));
         }

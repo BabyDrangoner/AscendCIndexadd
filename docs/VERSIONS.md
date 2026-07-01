@@ -758,6 +758,15 @@ prof_sum: 1901506.32
 - Submit: 2026-07-01 19:16:42 CST, workId `IndexAdd_v186_mask_reduce_priority.zip`.
 - Official result: pending; as of 19:16 CST the monitor showed v186 as latest work but the ranking timestamp/result still pointed to v185.
 
+## v187 mask-reduce-i16
+
+- Change: keep v186's Case4 mask-reduce dispatch priority, but move the tree reduction after `Select` from `half` to `int16_t`. Because CANN 8.5 on c220 does not support direct `Cast<int8_t, int16_t>` or `Select<int16_t>`, the implemented path is `int8 -> half`, half masked select, `half -> int16_t`, then int16 tree `Add`.
+- Rationale: preserve the vector-mask algorithm while testing whether integer tree reduction improves int8 precision and/or scalar/vector balance versus the pure-half mask-reduce path.
+- Package: `IndexAdd_v187_mask_reduce_i16.zip`
+- SHA256: `961d4d59040cfb3c622860f88933c4e4270951430dc57fae2d2d6cb2b20cf0f1`
+- Verification: Docker build passed; zip top-level host/kernel/fast op_api sources match local files; run-package embedded `index_add.cpp` matches local kernel source.
+- Submit: not submitted yet; held until v186 official result refreshes, to avoid overwriting the v186 A/B result.
+
 ## v166 workspace-atomic-packed
 
 - Change: keep v165's exact hot Case4 32B workspace atomic algorithm, but pack each 7-byte int8 row through `uint64_t` helpers before the 32B atomic write. Workspace initialization and source scatter now use packed row construction instead of seven scalar `GetValue`/`SetValue` pairs per row; final compaction also uses packed 7-byte loads.
