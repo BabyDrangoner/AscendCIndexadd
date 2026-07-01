@@ -637,4 +637,5 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - Package: `IndexAdd_v164_owner_atomic_once.zip`
 - SHA256: `cb2db7be7059f60c574e9ce172b37d3afd152617b077a14dddedbc1c2aa675d5`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
-- Submit: pending.
+- Submit: 2026-07-01 15:47:47 CST, workId `IndexAdd_v164_owner_atomic_once.zip`.
+- Official result: pending.
