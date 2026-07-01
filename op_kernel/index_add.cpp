@@ -1463,29 +1463,10 @@ class IndexAddKernel {
           } while (0)
 #define ADD_I8P4_ROW4(R) \
           do { \
-            constexpr uint64_t kSevenBytes = 0x00ffffffffffffffULL; \
-            const uint32_t word = src_off >> 3; \
-            const uint32_t shift = (src_off & 7) << 3; \
-            uint64_t va = 0; \
-            uint64_t vb = 0; \
-            uint64_t vc = 0; \
-            uint64_t vd = 0; \
-            if (shift == 0) { \
-              va = src0u.GetValue(word) & kSevenBytes; \
-              vb = src1u.GetValue(word) & kSevenBytes; \
-              vc = src2u.GetValue(word) & kSevenBytes; \
-              vd = src3u.GetValue(word) & kSevenBytes; \
-            } else { \
-              const uint32_t rshift = 64 - shift; \
-              va = ((src0u.GetValue(word) >> shift) | \
-                    (src0u.GetValue(word + 1) << rshift)) & kSevenBytes; \
-              vb = ((src1u.GetValue(word) >> shift) | \
-                    (src1u.GetValue(word + 1) << rshift)) & kSevenBytes; \
-              vc = ((src2u.GetValue(word) >> shift) | \
-                    (src2u.GetValue(word + 1) << rshift)) & kSevenBytes; \
-              vd = ((src3u.GetValue(word) >> shift) | \
-                    (src3u.GetValue(word + 1) << rshift)) & kSevenBytes; \
-            } \
+            const uint64_t va = LoadPacked7(src0u, src_off); \
+            const uint64_t vb = LoadPacked7(src1u, src_off); \
+            const uint64_t vc = LoadPacked7(src2u, src_off); \
+            const uint64_t vd = LoadPacked7(src3u, src_off); \
             ADD_I8P4_PACK(a, R); \
             ADD_I8P4_PACK(b, R); \
             ADD_I8P4_PACK(c, R); \

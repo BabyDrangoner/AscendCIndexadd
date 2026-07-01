@@ -376,3 +376,12 @@ prof_sum: 1818280.432
 ```
 
 Conclusion: full pass and recovers most of v140's regression, but is still 47.92us slower than the v121 recovery result. The shared address/shift calculation helps versus bucketed access, yet the compiler/register shape is not better than the original `LoadPacked7()` hot loop. Do not keep it as the baseline.
+
+## v142 pack4-blockdim-groups
+
+- Change: revert the v141 kernel change and keep the v121 Pack4 kernel. In host tiling, exact int8 Pack4 Case4 now uses `work_units=ceil(outer/4)` instead of `outer`, so Case4 `outer=120` maps to `blockDim=30` instead of launching 40 blocks for 30 Pack4 groups.
+- Rationale: v121's Pack4 kernel processes one four-outer group per block stride. The old host schedule leaves 10 blocks idle in Case4, yet those blocks still enter the kernel and perform cached-index setup. This candidate tests whether aligning blockDim to actual Pack4 work removes that overhead without changing arithmetic.
+- Package: `IndexAdd_v142_pack4_blockdim_groups.zip`
+- SHA256: `063311e54cefb77da8c938d4e96a1d98cd211c6801419f91cba0dc181396c16d`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: pending.
