@@ -656,4 +656,5 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - Package: `IndexAdd_v166_workspace_atomic_packed.zip`
 - SHA256: `9221d8f54685287d5477c4de1ced1f2f80eb00366e3692421d1030c1d60f0d3e`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
-- Submit: pending.
+- Submit: 2026-07-01 16:03:58 CST, workId `IndexAdd_v166_workspace_atomic_packed.zip`.
+- Official result: pending; as of 16:04 CST the ranking row still pointed to v151's `2026/07/01 14:23:54` `-1us` result.
