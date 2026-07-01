@@ -648,3 +648,12 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - SHA256: `1207c206a9716e2f80443836b18c51960939b5a813f1ffaf07e39f05666bb29c`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: pending.
+
+## v166 workspace-atomic-packed
+
+- Change: keep v165's exact hot Case4 32B workspace atomic algorithm, but pack each 7-byte int8 row through `uint64_t` helpers before the 32B atomic write. Workspace initialization and source scatter now use packed row construction instead of seven scalar `GetValue`/`SetValue` pairs per row; final compaction also uses packed 7-byte loads.
+- Rationale: this follows the external `copy self -> atomic scatter` direction while shaving the extra scalar row-marshalling cost introduced by the padded workspace safety variant.
+- Package: `IndexAdd_v166_workspace_atomic_packed.zip`
+- SHA256: `9221d8f54685287d5477c4de1ced1f2f80eb00366e3692421d1030c1d60f0d3e`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: pending.

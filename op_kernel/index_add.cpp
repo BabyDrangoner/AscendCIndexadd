@@ -1217,7 +1217,9 @@ class IndexAddKernel {
   __aicore__ inline void ProcessCase4AtomicInt8() {
     LocalTensor<int32_t> idx = index32_buf_.Get<int32_t>();
     LocalTensor<int8_t> src = src_buf_.Get<int8_t>();
+    LocalTensor<uint64_t> srcu = src_buf_.Get<uint64_t>();
     LocalTensor<int8_t> row = out_buf_.Get<int8_t>();
+    LocalTensor<uint64_t> rowu = out_buf_.Get<uint64_t>();
     DataCopyPadParams pad{false, 0, 0, 0};
     const uint32_t core_num = GetBlockNum();
     const uint32_t cid = GetBlockIdx();
@@ -1227,9 +1229,6 @@ class IndexAddKernel {
     DataCopyParams row32_copy{1, 32, 0, 0};
 
     RawCopyIndexTile(idx, 0, 1024);
-    for (uint32_t z = 7; z < 32; ++z) {
-      row.SetValue(z, 0);
-    }
 
     for (uint32_t outer_id = cid; outer_id < outer_; outer_id += core_num) {
       DataCopyPad(src, input_i8_gm_[InputOffset(outer_id, 0, 0)], outer_copy,
@@ -1237,13 +1236,7 @@ class IndexAddKernel {
       PipeBarrier<PIPE_MTE2>();
       for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
         const uint32_t in_off = axis_id * 7;
-        row.SetValue(0, src.GetValue(in_off + 0));
-        row.SetValue(1, src.GetValue(in_off + 1));
-        row.SetValue(2, src.GetValue(in_off + 2));
-        row.SetValue(3, src.GetValue(in_off + 3));
-        row.SetValue(4, src.GetValue(in_off + 4));
-        row.SetValue(5, src.GetValue(in_off + 5));
-        row.SetValue(6, src.GetValue(in_off + 6));
+        StorePacked7AsRow32(rowu, LoadPacked7(srcu, in_off));
         DataCopyPad(workspace_i8_gm_[WorkspaceOffset(outer_id, axis_id)], row,
                     row32_copy);
       }
@@ -1258,13 +1251,7 @@ class IndexAddKernel {
       for (uint32_t i = 0; i < 1024; ++i) {
         const uint32_t axis_id = static_cast<uint32_t>(idx.GetValue(i));
         const uint32_t src_off = i * 7;
-        row.SetValue(0, src.GetValue(src_off + 0));
-        row.SetValue(1, src.GetValue(src_off + 1));
-        row.SetValue(2, src.GetValue(src_off + 2));
-        row.SetValue(3, src.GetValue(src_off + 3));
-        row.SetValue(4, src.GetValue(src_off + 4));
-        row.SetValue(5, src.GetValue(src_off + 5));
-        row.SetValue(6, src.GetValue(src_off + 6));
+        StorePacked7AsRow32(rowu, LoadPacked7(srcu, src_off));
         DataCopyPad(workspace_i8_gm_[WorkspaceOffset(outer_id, axis_id)], row,
                     row32_copy);
       }
@@ -1278,13 +1265,7 @@ class IndexAddKernel {
                     row32_copy, pad);
         PipeBarrier<PIPE_MTE2>();
         const uint32_t out_off = axis_id * 7;
-        src.SetValue(out_off + 0, row.GetValue(0));
-        src.SetValue(out_off + 1, row.GetValue(1));
-        src.SetValue(out_off + 2, row.GetValue(2));
-        src.SetValue(out_off + 3, row.GetValue(3));
-        src.SetValue(out_off + 4, row.GetValue(4));
-        src.SetValue(out_off + 5, row.GetValue(5));
-        src.SetValue(out_off + 6, row.GetValue(6));
+        StorePacked7(src, out_off, LoadPacked7(rowu, 0));
       }
       DataCopyPad(output_i8_gm_[InputOffset(outer_id, 0, 0)], src,
                   outer_copy);
@@ -1560,6 +1541,15 @@ class IndexAddKernel {
     dst.SetValue(byte_off + 4, static_cast<int8_t>((value >> 32) & 0xff));
     dst.SetValue(byte_off + 5, static_cast<int8_t>((value >> 40) & 0xff));
     dst.SetValue(byte_off + 6, static_cast<int8_t>((value >> 48) & 0xff));
+  }
+
+  __aicore__ inline void StorePacked7AsRow32(LocalTensor<uint64_t>& dst,
+                                             uint64_t value) const {
+    constexpr uint64_t kSevenBytes = 0x00ffffffffffffffULL;
+    dst.SetValue(0, value & kSevenBytes);
+    dst.SetValue(1, 0);
+    dst.SetValue(2, 0);
+    dst.SetValue(3, 0);
   }
 
   __aicore__ inline void BuildCase4TileBuckets(
