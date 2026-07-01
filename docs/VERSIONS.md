@@ -471,5 +471,21 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `be00639014714c671c075cb052a071548163d650aa7ee0b90c4830b6baf29faa`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: 2026-07-01 20:07:05 CST, workId `IndexAdd_v192_strided_atomic_batch32.zip`.
-- Monitor: pending as of 2026-07-01 20:07:14 CST; workInfo shows v192, while the ranking row still points to the v189 result from `2026/07/01 18:46:23`.
+- Official result: 2026-07-01 19:16:41 ranking row, rank 11, full pass.
+  - Case1: 33.9us
+  - Case2: 12609.312us
+  - Case3: 60775.172us
+  - Case4: 1812418.364us
+  - Case5: 15622.404us
+  - prof_sum: 1901459.152us
+- Conclusion: full pass, but the strided atomic batch32 path does not produce the expected order-level Case4 reduction. The likely reason is that strided multi-block `DataCopyPad`/atomic still serializes small 7-byte row copies internally, so the command-shape change is not enough to escape the scalar/MTE issue.
 - Risk note: this is a high-upside/high-risk runtime probe. If strided multi-block `DataCopyPad` plus int8 atomic works on the official runner it can cut the Case4 command count substantially; if the runner rejects that DMA/atomic shape, Case4 may fail and the submission will show `-1us`.
+
+## v193 strided-atomic-batch16
+
+- Change: keep v192's exact Case4 int8 strided atomic path, but reduce the per-command outer-row batch from 32 to 16.
+- Rationale: if v192 fails because `blockCount=32` or its strided atomic command is too aggressive for the runner, batch16 is a safer probe while still reducing the hot Case4 atomic command count by about 16x relative to the old per-row atomic path.
+- Package: `IndexAdd_v193_strided_atomic_batch16.zip`
+- SHA256: `90184881d1fe5e8856d7a2e74b9b1f3020e66257442fff7620d79bb5783e5f57`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted. Since v192 was full-pass but did not materially improve Case4, batch16 is likely lower upside than the next non-atomic algorithm probe.
