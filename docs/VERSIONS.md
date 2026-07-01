@@ -552,3 +552,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `3b5bcb95a525e1664ba340a58e575b3fba35817eca6d74c6e504d8e6361b8393`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: not submitted.
+
+## v202 maskreduce-block16
+
+- Change: keep v201's exact Case4 mask-reduce kernel and lower the exact Case4 host block cap further from 24 to 16.
+- Rationale: continue the mask-reduce blockDim sweep. If duplicated mask setup dominates, block16 may beat block24/40; if vector reduction parallelism dominates, it will be worse. This gives a clean third point for the platform-only performance curve.
+- Package: `IndexAdd_v202_maskreduce_block16.zip`
+- SHA256: `825140fcf553eda8fd2cfb73a0a0b7dae7d70cdef72d9b7009438a08ef5e6467`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted.
