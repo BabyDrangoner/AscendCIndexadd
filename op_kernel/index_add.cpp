@@ -1397,11 +1397,25 @@ class IndexAddKernel {
     const uint32_t src_tile_cap = kDataBytes / 7;
     const uint32_t tile_cap = MinU32(IndexTileCap32(), src_tile_cap);
     const bool cached_index = index_len_ <= tile_cap;
+    LocalTensor<uint8_t> pair_code =
+        index32_buf_.Get<uint8_t>()[cached_index
+                                        ? AlignUp32(index_len_ *
+                                                    sizeof(int32_t))
+                                        : 0];
     const uint32_t groups = outer_ >> 2;
     const uint32_t core_num = GetBlockNum();
     const uint32_t cid = GetBlockIdx();
     if (cached_index) {
       RawCopyIndexTile(idx, 0, index_len_);
+      for (uint32_t p = 0; p < (index_len_ >> 1); ++p) {
+        const uint32_t r0 = static_cast<uint32_t>(idx.GetValue(p << 1));
+        const uint32_t r1 = static_cast<uint32_t>(idx.GetValue((p << 1) + 1));
+        uint8_t code = 255;
+        if (r0 < 6 && r1 < 6) {
+          code = static_cast<uint8_t>(r0 * 6 + r1);
+        }
+        pair_code.SetValue(p, code);
+      }
     }
 
     for (uint32_t group = cid; group < groups; group += core_num) {
@@ -1482,10 +1496,16 @@ class IndexAddKernel {
           const uint64_t vb1 = LoadPacked7(src1u, src_off1);
           const uint64_t vc1 = LoadPacked7(src2u, src_off1);
           const uint64_t vd1 = LoadPacked7(src3u, src_off1);
-          const uint32_t r0 = static_cast<uint32_t>(
-              idx.GetValue(cached_index ? base + i : i));
-          const uint32_t r1 = static_cast<uint32_t>(
-              idx.GetValue(cached_index ? base + i + 1 : i + 1));
+          uint32_t code = 255;
+          if (cached_index) {
+            code = static_cast<uint32_t>(pair_code.GetValue((base + i) >> 1));
+          } else {
+            const uint32_t r0 = static_cast<uint32_t>(idx.GetValue(i));
+            const uint32_t r1 = static_cast<uint32_t>(idx.GetValue(i + 1));
+            if (r0 < 6 && r1 < 6) {
+              code = r0 * 6 + r1;
+            }
+          }
 #define ADD_I8P4_PACK_SRC(P, R, S) \
           do { \
             P##R = AddPackedI8x7(P##R, v##P##S); \
@@ -1502,8 +1522,8 @@ class IndexAddKernel {
             ADD_I8P4_ROW4_SRC(R0, 0); \
             ADD_I8P4_ROW4_SRC(R1, 1); \
           } while (0)
-          if (r0 < 6 && r1 < 6) {
-            switch (r0 * 6 + r1) {
+          if (code < 36) {
+            switch (code) {
               case 0: ADD_I8P4_PAIR(0, 0); break;
               case 1: ADD_I8P4_PAIR(0, 1); break;
               case 2: ADD_I8P4_PAIR(0, 2); break;
@@ -1543,6 +1563,10 @@ class IndexAddKernel {
               default: break;
             }
           } else {
+            const uint32_t r0 = static_cast<uint32_t>(
+                idx.GetValue(cached_index ? base + i : i));
+            const uint32_t r1 = static_cast<uint32_t>(
+                idx.GetValue(cached_index ? base + i + 1 : i + 1));
             {
               const uint32_t src_off = src_off0;
               switch (r0) {

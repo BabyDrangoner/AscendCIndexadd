@@ -436,3 +436,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `2f5e8551248f86675d50fbf28e314a767b307069f25945783fc432e6e7b61da4`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: not submitted; wait for v186 official result or explicit overwrite decision.
+
+## v189 pack4-paircode
+
+- Change: build on v188, but precompute the shared 512-entry pair-code table in UB when the 1024-entry Case4 index tile is cached. The Pack4 hot loop now reads one `uint8_t` code per two source rows instead of two int32 index values plus a multiply.
+- Rationale: bucketed Pack4 was slower because it broke sequential source access. Pair-code keeps v121/v188's source-order DMA and packed accumulation while removing repeated shared-index decoding across every Pack4 outer group.
+- Package: `IndexAdd_v189_pack4_paircode.zip`
+- SHA256: `13423e2aad851699d45320c981b0abe61c575a2e32191055e01dd45f747cdc33`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted.
