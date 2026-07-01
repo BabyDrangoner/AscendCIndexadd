@@ -313,7 +313,18 @@ Conclusion: invalid candidate. Because all five cases fail, the `WholeReduceSum`
 - Package: `IndexAdd_v121_pack4_packed_cached.zip`
 - SHA256: `47af783c8f9ad945af7b664a712c7c8884a9bbf2e26fff71e245fb53f05a6f93`
 - Submit: 2026-07-01 11:21:02 CST, workId `IndexAdd_v121_pack4_packed_cached.zip`.
-- Monitor: pending as of 2026-07-01 11:25:10 CST; ranking row still points to v137's 2026-07-01 11:03:25 all-failed result.
+- Official result:
+
+```text
+Case1: Pass, Result: 37.392
+Case2: Pass, Result: 12593.528
+Case3: Pass, Result: 60719.292
+Case4: Pass, Result: 1729259.432
+Case5: Pass, Result: 15622.868
+prof_sum: 1818232.512
+```
+
+Conclusion: recovery submit succeeded and confirms the pipeline/package flow is healthy. The `-1` state came from the v137 reduce candidate, not from submit packaging.
 
 ## v139 restore-v121-source
 
@@ -323,3 +334,12 @@ Conclusion: invalid candidate. Because all five cases fail, the `WholeReduceSum`
 - SHA256: `d03799f756d3131b1a99cd929824c09f437fd18c23d4608065d99a72c293928a`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: not submitted. v121 was already resubmitted and is pending; keep v139 as the source-aligned recovery package unless the v121 row fails to refresh.
+
+## v140 case4-bucket-pack4
+
+- Change: add an exact int8 Case4 path for `index=int32`, `axis=6`, `inner=7`, and `index_len=1024`. Each core classifies the shared index once into six UB offset buckets, then the Pack4 hot loop accumulates each bucket directly instead of reading `idx` and executing a six-way switch for every source row.
+- Rationale: v121 is bottlenecked by scalar control flow. This candidate avoids high-risk KFC/reduce/Gather primitives while removing repeated index loads and branchy dispatch from every outer4 group.
+- Package: `IndexAdd_v140_case4_bucket_pack4.zip`
+- SHA256: `7fd2e335f2e79f224c0554f470343c884d5e96878e419349c355a06b8ae71d95`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: pending.

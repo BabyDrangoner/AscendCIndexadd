@@ -175,6 +175,10 @@ class IndexAddKernel {
       ProcessCase4MaskReduceI16();
       return;
     }
+    if (UseCase4Int8BucketPack4Path()) {
+      ProcessCase4BucketPack4Int8();
+      return;
+    }
     if (UseCase4Int8Pack4Path()) {
       ProcessCase4Pack4Int8();
       return;
@@ -298,6 +302,12 @@ class IndexAddKernel {
     return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
            ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
            index_len_ >= 512 && ((outer_ & 3) == 0);
+  }
+
+  __aicore__ inline bool UseCase4Int8BucketPack4Path() const {
+    return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
+           ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
+           index_len_ == 1024 && ((outer_ & 3) == 0);
   }
 
   __aicore__ inline bool UseCase4MaskReduceI16Path() const {
@@ -1380,6 +1390,133 @@ class IndexAddKernel {
     dst.SetValue(byte_off + 4, static_cast<int8_t>((value >> 32) & 0xff));
     dst.SetValue(byte_off + 5, static_cast<int8_t>((value >> 40) & 0xff));
     dst.SetValue(byte_off + 6, static_cast<int8_t>((value >> 48) & 0xff));
+  }
+
+  __aicore__ inline void ProcessCase4BucketPack4Int8() {
+    LocalTensor<uint16_t> bucket = index32_buf_.Get<uint16_t>();
+    LocalTensor<int8_t> src0 = src_buf_.Get<int8_t>();
+    LocalTensor<int8_t> src1 = src_cast_buf_.Get<int8_t>();
+    LocalTensor<int8_t> src2 = acc_buf_.Get<int8_t>();
+    LocalTensor<int8_t> src3 = out_buf_.Get<int8_t>();
+    LocalTensor<uint64_t> src0u = src_buf_.Get<uint64_t>();
+    LocalTensor<uint64_t> src1u = src_cast_buf_.Get<uint64_t>();
+    LocalTensor<uint64_t> src2u = acc_buf_.Get<uint64_t>();
+    LocalTensor<uint64_t> src3u = out_buf_.Get<uint64_t>();
+    DataCopyPadParams pad{false, 0, 0, 0};
+    DataCopyParams rows_copy{1, 42, 0, 0};
+    DataCopyParams src_copy{1, static_cast<uint16_t>(1024 * 7), 0, 0};
+    const uint32_t groups = outer_ >> 2;
+    const uint32_t core_num = GetBlockNum();
+    const uint32_t cid = GetBlockIdx();
+
+    uint32_t n0 = 0;
+    uint32_t n1 = 0;
+    uint32_t n2 = 0;
+    uint32_t n3 = 0;
+    uint32_t n4 = 0;
+    uint32_t n5 = 0;
+    for (uint32_t i = 0; i < 1024; ++i) {
+      const uint16_t off = static_cast<uint16_t>(i * 7);
+      switch (static_cast<uint32_t>(index32_gm_.GetValue(i))) {
+        case 0: bucket.SetValue(n0++, off); break;
+        case 1: bucket.SetValue(1024 + n1++, off); break;
+        case 2: bucket.SetValue(2048 + n2++, off); break;
+        case 3: bucket.SetValue(3072 + n3++, off); break;
+        case 4: bucket.SetValue(4096 + n4++, off); break;
+        case 5: bucket.SetValue(5120 + n5++, off); break;
+        default: break;
+      }
+    }
+
+    for (uint32_t group = cid; group < groups; group += core_num) {
+      const uint32_t outer0 = group << 2;
+      const uint32_t outer1 = outer0 + 1;
+      const uint32_t outer2 = outer0 + 2;
+      const uint32_t outer3 = outer0 + 3;
+
+#define DECL_I8B4_PACK(P) \
+      uint64_t P##0 = 0; \
+      uint64_t P##1 = 0; \
+      uint64_t P##2 = 0; \
+      uint64_t P##3 = 0; \
+      uint64_t P##4 = 0; \
+      uint64_t P##5 = 0
+      DECL_I8B4_PACK(a);
+      DECL_I8B4_PACK(b);
+      DECL_I8B4_PACK(c);
+      DECL_I8B4_PACK(d);
+#undef DECL_I8B4_PACK
+
+#define LOAD_I8B4_OUTER(P, OUTER) \
+      do { \
+        DataCopyPad(src0, input_i8_gm_[InputOffset((OUTER), 0, 0)], rows_copy, pad); \
+        PipeBarrier<PIPE_MTE2>(); \
+        P##0 = LoadPacked7(src0u, 0); \
+        P##1 = LoadPacked7(src0u, 7); \
+        P##2 = LoadPacked7(src0u, 14); \
+        P##3 = LoadPacked7(src0u, 21); \
+        P##4 = LoadPacked7(src0u, 28); \
+        P##5 = LoadPacked7(src0u, 35); \
+      } while (0)
+      LOAD_I8B4_OUTER(a, outer0);
+      LOAD_I8B4_OUTER(b, outer1);
+      LOAD_I8B4_OUTER(c, outer2);
+      LOAD_I8B4_OUTER(d, outer3);
+#undef LOAD_I8B4_OUTER
+
+      DataCopyPad(src0, source_i8_gm_[SourceOffset(outer0, 0, 0)],
+                  src_copy, pad);
+      DataCopyPad(src1, source_i8_gm_[SourceOffset(outer1, 0, 0)],
+                  src_copy, pad);
+      DataCopyPad(src2, source_i8_gm_[SourceOffset(outer2, 0, 0)],
+                  src_copy, pad);
+      DataCopyPad(src3, source_i8_gm_[SourceOffset(outer3, 0, 0)],
+                  src_copy, pad);
+      PipeBarrier<PIPE_MTE2>();
+
+#define ADD_I8B4_ONE(R, OFF) \
+      do { \
+        const uint64_t va = LoadPacked7(src0u, (OFF)); \
+        const uint64_t vb = LoadPacked7(src1u, (OFF)); \
+        const uint64_t vc = LoadPacked7(src2u, (OFF)); \
+        const uint64_t vd = LoadPacked7(src3u, (OFF)); \
+        a##R = AddPackedI8x7(a##R, va); \
+        b##R = AddPackedI8x7(b##R, vb); \
+        c##R = AddPackedI8x7(c##R, vc); \
+        d##R = AddPackedI8x7(d##R, vd); \
+      } while (0)
+#define ADD_I8B4_BUCKET(R, BASE, CNT) \
+      do { \
+        for (uint32_t j = 0; j < (CNT); ++j) { \
+          ADD_I8B4_ONE(R, bucket.GetValue((BASE) + j)); \
+        } \
+      } while (0)
+      ADD_I8B4_BUCKET(0, 0, n0);
+      ADD_I8B4_BUCKET(1, 1024, n1);
+      ADD_I8B4_BUCKET(2, 2048, n2);
+      ADD_I8B4_BUCKET(3, 3072, n3);
+      ADD_I8B4_BUCKET(4, 4096, n4);
+      ADD_I8B4_BUCKET(5, 5120, n5);
+#undef ADD_I8B4_BUCKET
+#undef ADD_I8B4_ONE
+
+#define STORE_I8B4_ACC(P, R) \
+      StorePacked7(src3, (R) * 7, P##R)
+#define STORE_I8B4_OUTER(P, OUTER) \
+      do { \
+        STORE_I8B4_ACC(P, 0); STORE_I8B4_ACC(P, 1); \
+        STORE_I8B4_ACC(P, 2); STORE_I8B4_ACC(P, 3); \
+        STORE_I8B4_ACC(P, 4); STORE_I8B4_ACC(P, 5); \
+        DataCopyPad(output_i8_gm_[InputOffset((OUTER), 0, 0)], src3, rows_copy); \
+        PipeBarrier<PIPE_MTE3>(); \
+      } while (0)
+      STORE_I8B4_OUTER(a, outer0);
+      STORE_I8B4_OUTER(b, outer1);
+      STORE_I8B4_OUTER(c, outer2);
+      STORE_I8B4_OUTER(d, outer3);
+#undef STORE_I8B4_OUTER
+#undef STORE_I8B4_ACC
+    }
   }
 
   __aicore__ inline void ProcessCase4Pack4Int8() {
