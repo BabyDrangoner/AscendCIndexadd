@@ -246,3 +246,12 @@ Conclusion: invalid candidate. Always registering the KFC object did not fix the
 - SHA256: `dedf40eafce62568dc465bbf84ce931f3145ce59a8798d931cdc8a995b265c5a`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: not submitted yet; official submit needs a refreshed HiAscend cookie.
+
+## v134 kfc-cap24-all-m32
+
+- Change: keep v132/v133's KFC lifecycle/workspace/blockDim fixes, but use dense Case4 Matmul M tile of 32 rows.
+- Rationale: M=32 is the most conservative KFC dense tile in this set. It issues more Matmul commands than M=64/M=128 but may be easier for the KFC scheduler/cache path to execute correctly and consistently.
+- Package: `IndexAdd_v134_kfc_cap24_all_m32.zip`
+- SHA256: `a6e4459fa03d55493398c596f70865a62406bbe5d80f56a7bdc9e2ad59c5100f`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: not submitted yet; official submit needs a refreshed HiAscend cookie.
