@@ -589,7 +589,18 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - SHA256: `25f557bd1531730f62de0f8e86dd85be79440b8f5b0b0b758058f9f6e499ed81`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 15:13:11 CST, workId `IndexAdd_v159_pack16_bucket.zip`.
-- Official result: pending; as of 15:13 CST the ranking row still pointed to v151's `2026/07/01 14:23:54` `-1us` result.
+- Official result:
+
+```text
+Case1: Pass, Result: 43.512
+Case2: Pass, Result: 12560.82
+Case3: Pass, Result: 60750.012
+Case4: Pass, Result: 1812407.92
+Case5: Pass, Result: 15619.524
+prof_sum: 1901381.788
+```
+
+Conclusion: full pass but worse than v148 by about 83ms, so preclassified bucket order alone does not break the scalar Pack16 ceiling.
 
 ## v160 gather-float-reduce
 
