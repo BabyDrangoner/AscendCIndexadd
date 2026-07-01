@@ -286,3 +286,12 @@ Conclusion: invalid candidate. Even with AIV-only buffer initialization and a gl
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-07-01 11:03:27 CST, workId `IndexAdd_v137_case4_vcadd_f32_reduce.zip`.
 - Monitor: pending as of 2026-07-01 11:03:39 CST; ranking row still points to v132's 2026-07-01 10:33:48 result.
+
+## v138 case4-gather-f32-reduce
+
+- Change: replace the v137 exact int8 Case4 onehot-select path with a gather-reduce path. Each core preclassifies the shared index into `2 x 6` byte-offset lists, casts each 512-row source tile to float once, gathers only matching axis/lane values with vector `Gather<float>`, then reduces the compacted values with `WholeReduceSum`.
+- Rationale: v137 still scans all rows for every axis bucket. v138 keeps contiguous source DMA but removes the six full zero-filled scans, testing whether vector gather plus compact reduction can beat both packed scalar and onehot-select reductions.
+- Package: `IndexAdd_v138_case4_gather_f32_reduce.zip`
+- SHA256: `cb6b8a572652422d26ce757b3095208a1cd6b8d29d88ce41ea79e860ef3c2b2d`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: not submitted yet; wait for v137's official result before overwriting the platform row.
