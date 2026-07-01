@@ -355,3 +355,12 @@ prof_sum: 1818485.36
 ```
 
 Conclusion: full pass but worse than the v121 recovery result by 252.848us. Removing the switch/index load is not enough; bucket-table UB reads and non-sequential source access offset the control-flow gain. Do not keep this path as the baseline.
+
+## v141 pack4-shared-loadcalc
+
+- Change: revert the v140 bucketed path and keep the v121 Pack4 source-order hot loop. Within each index iteration, compute the packed 7-byte `word/shift` once and load all four outer source rows with that shared offset calculation instead of calling `LoadPacked7()` four times.
+- Rationale: v140 showed that preserving sequential source access matters. This candidate attacks the scalar address/shift overhead inside the proven Pack4 loop while avoiding non-sequential UB reads and high-risk vector reduce primitives.
+- Package: `IndexAdd_v141_pack4_shared_loadcalc.zip`
+- SHA256: `9b0d486359635326fcf5369324c5ddaea4710313063710420ce659b7d31c4293`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: pending.
