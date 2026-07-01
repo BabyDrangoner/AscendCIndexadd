@@ -508,4 +508,5 @@ Conclusion: full pass and better than the 12:23 v121 recovery run by 14.088us, b
 - Package: `IndexAdd_v148_case4_pack16_packed.zip`
 - SHA256: `9ec803acc7f6a327bbb32f028f9240cee033abd7a7be9949d46c157a981dfe0d`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
-- Submit: not submitted yet; wait for v147 Pack8's official result before overwriting the platform row.
+- Submit: 2026-07-01 13:31:45 CST, workId `IndexAdd_v148_case4_pack16_packed.zip`.
+- Official result: pending; as of 13:31 CST the ranking row still pointed to v145's `2026/07/01 13:01:52` result.
