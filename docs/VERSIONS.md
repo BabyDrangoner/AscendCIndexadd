@@ -343,4 +343,15 @@ Conclusion: recovery submit succeeded and confirms the pipeline/package flow is 
 - SHA256: `7fd2e335f2e79f224c0554f470343c884d5e96878e419349c355a06b8ae71d95`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-07-01 11:34:34 CST, workId `IndexAdd_v140_case4_bucket_pack4.zip`.
-- Monitor: pending as of 2026-07-01 11:34:48 CST; ranking row still points to v121's 2026-07-01 11:21:00 full-pass result.
+- Official result:
+
+```text
+Case1: Pass, Result: 36.164
+Case2: Pass, Result: 12676.592
+Case3: Pass, Result: 60724.46
+Case4: Pass, Result: 1729436.652
+Case5: Pass, Result: 15611.492
+prof_sum: 1818485.36
+```
+
+Conclusion: full pass but worse than the v121 recovery result by 252.848us. Removing the switch/index load is not enough; bucket-table UB reads and non-sequential source access offset the control-flow gain. Do not keep this path as the baseline.
