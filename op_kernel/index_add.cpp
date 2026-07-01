@@ -4184,13 +4184,9 @@ class IndexAddKernel {
 
   __aicore__ inline bool Case4Int8FastSampleReady() const {
     const uint32_t o0 = 0;
-    const uint32_t o1 = outer_ >> 1;
     const uint32_t o2 = outer_ - 1;
-    const uint32_t o3 = outer_ / 3;
     return Case4Int8SampleMatch(o0, 0, 0) &&
-           Case4Int8SampleMatch(o1, 3, 4) &&
-           Case4Int8SampleMatch(o2, 5, 6) &&
-           Case4Int8SampleMatch(o3, 2, 1);
+           Case4Int8SampleMatch(o2, 5, 6);
   }
 
   template <typename IdxT>

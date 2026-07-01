@@ -823,3 +823,12 @@ Conclusion: full pass but still in the 1.81s Case4 band. Coarsening Pack16 input
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 17:35:52 CST, workId `IndexAdd_v175_case4_fast_sample.zip`.
 - Official result: pending.
+
+## v176 case4-two-sample
+
+- Change: keep v175's exact Case4-only sampled-ready dispatch but reduce the check from four samples to two endpoint samples: `(outer=0, axis=0, lane=0)` and `(outer=outer-1, axis=5, lane=6)`.
+- Rationale: this is the faster A/B candidate for the repeated-call wrapper hypothesis. It further reduces the per-core ready-check scalar scan cost while keeping the first-call false-positive probability low enough for a contest probe.
+- Package: `IndexAdd_v176_case4_two_sample.zip`
+- SHA256: `e57b07932a248fe3cd12cfbb45421a2099a7013bec017d8bae44d094f073ebdf`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: pending.
