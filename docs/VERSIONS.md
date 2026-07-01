@@ -470,4 +470,6 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - Package: `IndexAdd_v192_strided_atomic_batch32.zip`
 - SHA256: `be00639014714c671c075cb052a071548163d650aa7ee0b90c4830b6baf29faa`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
-- Submit: not submitted. This is a high-upside/high-risk runtime probe: if strided multi-block `DataCopyPad` plus int8 atomic works on the official runner it can cut the Case4 command count substantially; if the runner rejects that DMA/atomic shape, Case4 may fail and the submission will show `-1us`.
+- Submit: 2026-07-01 20:07:05 CST, workId `IndexAdd_v192_strided_atomic_batch32.zip`.
+- Monitor: pending as of 2026-07-01 20:07:14 CST; workInfo shows v192, while the ranking row still points to the v189 result from `2026/07/01 18:46:23`.
+- Risk note: this is a high-upside/high-risk runtime probe. If strided multi-block `DataCopyPad` plus int8 atomic works on the official runner it can cut the Case4 command count substantially; if the runner rejects that DMA/atomic shape, Case4 may fail and the submission will show `-1us`.
