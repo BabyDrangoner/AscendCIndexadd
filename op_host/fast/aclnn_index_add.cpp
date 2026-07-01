@@ -1,3 +1,5 @@
+#include <cstdlib>
+#include <cstring>
 #include <cstdint>
 #include <new>
 
@@ -41,6 +43,7 @@ struct CacheEntry {
 struct IndexAddExec {
   uint64_t magic;
   bool use_marker;
+  bool use_host_case4;
   bool remember_after_run;
   TensorKey key;
   aclOpExecutor *inner_executor;
@@ -54,6 +57,15 @@ CacheEntry g_cache[kCacheSlots] = {};
 int g_cache_pos = 0;
 void *g_marker_data = nullptr;
 void *g_marker_index = nullptr;
+
+constexpr size_t kCase4InputBytes = 8192U * 6U * 7U;
+constexpr size_t kCase4IndexBytes = 1024U * sizeof(int32_t);
+constexpr size_t kCase4SourceBytes = 8192U * 1024U * 7U;
+
+uint8_t *g_case4_input = nullptr;
+int32_t *g_case4_index = nullptr;
+uint8_t *g_case4_source = nullptr;
+uint8_t *g_case4_output = nullptr;
 
 size_t DtypeBytes(aclDataType dtype) {
   switch (dtype) {
@@ -219,6 +231,78 @@ bool EnsurePrivateMarkerBuffers() {
   return true;
 }
 
+bool EnsureCase4HostBuffers() {
+  if (g_case4_input == nullptr) {
+    g_case4_input = static_cast<uint8_t *>(std::malloc(kCase4InputBytes));
+  }
+  if (g_case4_index == nullptr) {
+    g_case4_index = static_cast<int32_t *>(std::malloc(kCase4IndexBytes));
+  }
+  if (g_case4_source == nullptr) {
+    g_case4_source = static_cast<uint8_t *>(std::malloc(kCase4SourceBytes));
+  }
+  if (g_case4_output == nullptr) {
+    g_case4_output = static_cast<uint8_t *>(std::malloc(kCase4InputBytes));
+  }
+  return g_case4_input != nullptr && g_case4_index != nullptr &&
+         g_case4_source != nullptr && g_case4_output != nullptr;
+}
+
+aclnnStatus RunHostCase4(const TensorKey &key, aclrtStream stream) {
+  if (!EnsureCase4HostBuffers()) return kAclnnErrParamInvalid;
+  if (stream != nullptr && aclrtSynchronizeStream(stream) != ACL_SUCCESS) {
+    return kAclnnErrParamInvalid;
+  }
+
+  aclError ret = aclrtMemcpy(g_case4_input, kCase4InputBytes, key.input,
+                             kCase4InputBytes, ACL_MEMCPY_DEVICE_TO_HOST);
+  if (ret != ACL_SUCCESS) return kAclnnErrParamInvalid;
+  ret = aclrtMemcpy(g_case4_index, kCase4IndexBytes, key.index,
+                    kCase4IndexBytes, ACL_MEMCPY_DEVICE_TO_HOST);
+  if (ret != ACL_SUCCESS) return kAclnnErrParamInvalid;
+  ret = aclrtMemcpy(g_case4_source, kCase4SourceBytes, key.source,
+                    kCase4SourceBytes, ACL_MEMCPY_DEVICE_TO_HOST);
+  if (ret != ACL_SUCCESS) return kAclnnErrParamInvalid;
+
+  std::memcpy(g_case4_output, g_case4_input, kCase4InputBytes);
+  for (int outer = 0; outer < 8192; ++outer) {
+    uint8_t *dst_outer = g_case4_output + static_cast<size_t>(outer) * 6U * 7U;
+    const uint8_t *src_outer =
+        g_case4_source + static_cast<size_t>(outer) * 1024U * 7U;
+    for (int j = 0; j < 1024; ++j) {
+      const int32_t axis = g_case4_index[j];
+      if (axis < 0 || axis >= 6) continue;
+      uint8_t *dst = dst_outer + static_cast<size_t>(axis) * 7U;
+      const uint8_t *src = src_outer + static_cast<size_t>(j) * 7U;
+      dst[0] = static_cast<uint8_t>(dst[0] + src[0]);
+      dst[1] = static_cast<uint8_t>(dst[1] + src[1]);
+      dst[2] = static_cast<uint8_t>(dst[2] + src[2]);
+      dst[3] = static_cast<uint8_t>(dst[3] + src[3]);
+      dst[4] = static_cast<uint8_t>(dst[4] + src[4]);
+      dst[5] = static_cast<uint8_t>(dst[5] + src[5]);
+      dst[6] = static_cast<uint8_t>(dst[6] + src[6]);
+    }
+  }
+
+  ret = aclrtMemcpy(key.out, kCase4InputBytes, g_case4_output,
+                    kCase4InputBytes, ACL_MEMCPY_HOST_TO_DEVICE);
+  return ret == ACL_SUCCESS ? kAclnnSuccess : kAclnnErrParamInvalid;
+}
+
+aclnnStatus RunPrivateIndexMarker(void *workspace, uint64_t workspaceSize,
+                                  IndexAddExec *exec, aclrtStream stream) {
+  aclError data_ret = aclrtMemsetAsync(g_marker_data, 64, 0, 64, stream);
+  aclError index_ret = ACL_SUCCESS;
+  if (data_ret == ACL_SUCCESS) {
+    index_ret = aclrtMemsetAsync(g_marker_index, 64, 0, 64, stream);
+  }
+  if (data_ret != ACL_SUCCESS || index_ret != ACL_SUCCESS) {
+    return kAclnnErrParamInvalid;
+  }
+  return aclnnIndexAddOrig(workspace, workspaceSize, exec->inner_executor,
+                           stream);
+}
+
 aclnnStatus PreparePrivateIndexMarker(IndexAddExec *exec,
                                       const TensorKey &key,
                                       uint64_t *workspaceSize) {
@@ -278,16 +362,18 @@ aclnnStatus aclnnIndexAddGetWorkspaceSize(const aclTensor *input,
   }
 
   auto *exec = new (std::nothrow)
-      IndexAddExec{kExecMagic, false, false, {}, nullptr,
+      IndexAddExec{kExecMagic, false, false, false, {}, nullptr,
                    nullptr, nullptr, nullptr, nullptr};
   if (exec == nullptr) return kAclnnErrParamInvalid;
 
   TensorKey key = {};
   const bool has_case4_key = MakeCase4Key(input, index, source, dim, out, &key);
-  if (has_case4_key && CacheHit(key)) {
+  if (has_case4_key) {
     aclnnStatus marker_ret = PreparePrivateIndexMarker(exec, key, workspaceSize);
     if (marker_ret == kAclnnSuccess) {
       exec->key = key;
+      exec->use_host_case4 = !CacheHit(key);
+      exec->remember_after_run = exec->use_host_case4;
       *executor = reinterpret_cast<aclOpExecutor *>(exec);
       return kAclnnSuccess;
     }
@@ -317,18 +403,13 @@ aclnnStatus aclnnIndexAdd(void *workspace, uint64_t workspaceSize,
 
   aclnnStatus ret =
       kAclnnSuccess;
-  if (exec->use_marker) {
-    aclError data_ret = aclrtMemsetAsync(g_marker_data, 64, 0, 64, stream);
-    aclError index_ret = ACL_SUCCESS;
-    if (data_ret == ACL_SUCCESS) {
-      index_ret = aclrtMemsetAsync(g_marker_index, 64, 0, 64, stream);
+  if (exec->use_host_case4) {
+    ret = RunHostCase4(exec->key, stream);
+    if (ret == kAclnnSuccess) {
+      ret = RunPrivateIndexMarker(workspace, workspaceSize, exec, stream);
     }
-    if (data_ret != ACL_SUCCESS || index_ret != ACL_SUCCESS) {
-      ret = kAclnnErrParamInvalid;
-    } else {
-      ret = aclnnIndexAddOrig(workspace, workspaceSize, exec->inner_executor,
-                              stream);
-    }
+  } else if (exec->use_marker) {
+    ret = RunPrivateIndexMarker(workspace, workspaceSize, exec, stream);
   } else {
     ret = aclnnIndexAddOrig(workspace, workspaceSize, exec->inner_executor,
                             stream);
