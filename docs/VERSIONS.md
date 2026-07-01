@@ -563,3 +563,20 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-07-01 14:10:18 CST, workId `IndexAdd_v150_case4_pack16_pair2.zip`.
 - Official result: pending; as of 14:10 CST the ranking row still pointed to v148's `2026/07/01 13:31:43` result.
+
+## v157 mask-i16-direct
+
+- Change: test a pure AIV Case4 mask-reduce path that would cast `int8` source directly to `int16`, then select and tree-reduce in `int16`.
+- Rationale: this would remove the old `int8 -> half -> int16` conversion chain from the vector mask-reduce path and avoid the scalar Pack16 ceiling.
+- Package: none.
+- Verification: Docker build failed during Ascend C kernel compilation. CANN 8.5 for 910B has `Cast<int16_t, half>`, `Cast<int16_t, float>`, and `Cast<int16_t, int32_t>`, but no `Cast<int16_t, int8_t>` intrinsic.
+- Conclusion: direct int8-to-int16 vector cast is not available on this toolchain/device path.
+
+## v158 mask-half-reduce
+
+- Change: enable the exact hot Case4 mask-reduce path for `dtype=int8`, `index=int32`, `outer=8192`, `axis=6`, `inner=7`, `index_len=1024`, but reduce directly in `half` after the initial `int8 -> half` cast. This removes the per-axis `half -> int16` cast from v120's mask-reduce design.
+- Rationale: Pack16/Pack32 are bounded by scalar index dispatch and packed scalar accumulation. v158 revisits the onehot-mask/vector-tree idea with one less conversion stage. It has no KFC lifecycle risk and should be judged by official correctness/performance, especially for the hidden Case4 distribution.
+- Package: `IndexAdd_v158_mask_half_reduce.zip`
+- SHA256: `ecbd759cd88597b94d812cca3e1eab4f7c79e31d29c4520d376692ebad269a06`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: not submitted yet.
