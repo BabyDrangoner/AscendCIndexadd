@@ -588,4 +588,5 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - Package: `IndexAdd_v159_pack16_bucket.zip`
 - SHA256: `25f557bd1531730f62de0f8e86dd85be79440b8f5b0b0b758058f9f6e499ed81`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
-- Submit: pending.
+- Submit: 2026-07-01 15:13:11 CST, workId `IndexAdd_v159_pack16_bucket.zip`.
+- Official result: pending; as of 15:13 CST the ranking row still pointed to v151's `2026/07/01 14:23:54` `-1us` result.
