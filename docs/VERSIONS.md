@@ -364,4 +364,15 @@ Conclusion: full pass but worse than the v121 recovery result by 252.848us. Remo
 - SHA256: `9b0d486359635326fcf5369324c5ddaea4710313063710420ce659b7d31c4293`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-07-01 11:44:59 CST, workId `IndexAdd_v141_pack4_shared_loadcalc.zip`.
-- Monitor: pending as of 2026-07-01 11:45:14 CST; ranking row still points to v140's 2026-07-01 11:34:32 result.
+- Official result:
+
+```text
+Case1: Pass, Result: 33.5
+Case2: Pass, Result: 12606.8
+Case3: Pass, Result: 60724.364
+Case4: Pass, Result: 1729290.84
+Case5: Pass, Result: 15624.928
+prof_sum: 1818280.432
+```
+
+Conclusion: full pass and recovers most of v140's regression, but is still 47.92us slower than the v121 recovery result. The shared address/shift calculation helps versus bucketed access, yet the compiler/register shape is not better than the original `LoadPacked7()` hot loop. Do not keep it as the baseline.
