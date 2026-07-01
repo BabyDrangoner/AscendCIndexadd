@@ -516,3 +516,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: 2026-07-01 20:28:12 CST, workId `IndexAdd_v195_strided_atomic_outer120_b4.zip`.
 - Monitor: pending as of 2026-07-01 20:28:24 CST; workInfo shows v195, while the ranking row still points to the v194 fallback result from `2026/07/01 19:47:05`.
+
+## v197 strided-atomic-outer120-b2
+
+- Change: keep v195's corrected `outer=120` strided atomic path, but batch 2 outer rows per command and set exact Case4 host work units to 60, capped to 40 launched AIV blocks by the existing host block cap.
+- Rationale: batch2 is the conservative runtime-stability point for the strided atomic family. It uses more cores and smaller strided atomic commands than batch4/batch8, at the cost of more command launches.
+- Package: `IndexAdd_v197_strided_atomic_outer120_b2.zip`
+- SHA256: `0ebf6e650dc18a75f202c91fd8107fdfd8315d15b4647e60c39286e6f6ce23db`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted; use if v195 fails or if batch4 appears under-parallelized.
