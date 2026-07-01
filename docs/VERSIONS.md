@@ -480,3 +480,12 @@ prof_sum: 1818324.064
 ```
 
 Conclusion: full pass and better than the 12:23 v121 recovery run by 14.088us, but Case4 itself is still slower than v121. Pack5 reduced scalar dispatch groups from 30 to 24, but higher register pressure and idle block overhead appear to offset the loop-count reduction.
+
+## v146 case4-pack5-blockdim24
+
+- Change: keep the v145 Pack5 scalar kernel, but change host tiling so the exact Case4 Pack5 path reports `work_units=outer/5`. For the observed Case4 shape this launches 24 active blocks instead of the v121/v145 40-block launch with 16 idle blocks.
+- Rationale: isolate whether Pack5's idle block scheduling overhead was masking the benefit of fewer scalar index-dispatch groups. This is a host-only scheduling experiment; the kernel arithmetic and memory path are unchanged from v145.
+- Package: `IndexAdd_v146_pack5_blockdim24.zip`
+- SHA256: `cc6ba488923156c52f8bc2f7c5f65e21818eca8b58f6c8e2762e70e83ea1c2eb`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: pending.
