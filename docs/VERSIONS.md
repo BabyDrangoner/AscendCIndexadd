@@ -688,4 +688,5 @@ Conclusion: full pass but worse than v148 by about 83ms. The lane-by-lane float 
 - Package: `IndexAdd_v167_row_gather_i16_reduce.zip`
 - SHA256: `f11526fdd8669c884230b0ae0b9739ede728cd7faafb94bc0edb0de9d01ec18c`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
-- Submit: pending.
+- Submit: 2026-07-01 16:15:09 CST, workId `IndexAdd_v167_row_gather_i16_reduce.zip`.
+- Official result: pending; as of 16:15 CST the ranking row still pointed to v160's `2026/07/01 15:20:04` result.
