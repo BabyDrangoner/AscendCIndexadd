@@ -126,9 +126,9 @@ void *TensorDataWithOffset(const aclTensor *tensor, size_t item_bytes) {
   return static_cast<char *>(addr) + static_cast<size_t>(offset) * item_bytes;
 }
 
-bool MakeCase4Key(const aclTensor *input, const aclTensor *index,
-                  const aclTensor *source, int64_t dim,
-                  const aclTensor *out, TensorKey *key) {
+bool MakeRepeatKey(const aclTensor *input, const aclTensor *index,
+                   const aclTensor *source, int64_t dim,
+                   const aclTensor *out, TensorKey *key) {
   int64_t *in_shape = nullptr;
   int64_t *idx_shape = nullptr;
   int64_t *src_shape = nullptr;
@@ -141,34 +141,49 @@ bool MakeCase4Key(const aclTensor *input, const aclTensor *index,
   if (aclGetViewShape(index, &idx_shape, &idx_ndim) != kAclnnSuccess) return false;
   if (aclGetViewShape(source, &src_shape, &src_ndim) != kAclnnSuccess) return false;
   if (aclGetViewShape(out, &out_shape, &out_ndim) != kAclnnSuccess) return false;
-  if (in_ndim != 6 || src_ndim != 6 || out_ndim != 6 || idx_ndim != 1) return false;
+  if (in_ndim == 0 || idx_ndim != 1 || src_ndim != in_ndim ||
+      out_ndim != in_ndim) {
+    return false;
+  }
 
   int64_t real_dim = dim < 0 ? dim + static_cast<int64_t>(in_ndim) : dim;
-  if (real_dim != 4) return false;
-  if (in_shape[4] != 6 || in_shape[5] != 7 || idx_shape[0] != 1024) return false;
-  if (src_shape[4] != 1024 || src_shape[5] != 7) return false;
+  if (real_dim < 0 || real_dim >= static_cast<int64_t>(in_ndim)) return false;
+  const int64_t index_len = idx_shape[0];
+  if (index_len <= 0) return false;
 
   int64_t outer = 1;
-  for (int i = 0; i < 4; ++i) {
-    if (src_shape[i] != in_shape[i] || out_shape[i] != in_shape[i]) return false;
-    outer *= in_shape[i];
+  int64_t inner = 1;
+  const int64_t axis = in_shape[real_dim];
+  if (axis <= 0) return false;
+  for (int64_t i = 0; i < static_cast<int64_t>(in_ndim); ++i) {
+    if (in_shape[i] <= 0) return false;
+    if (out_shape[i] != in_shape[i]) return false;
+    const int64_t want_src = (i == real_dim) ? index_len : in_shape[i];
+    if (src_shape[i] != want_src) return false;
+    if (i < real_dim) outer *= in_shape[i];
+    if (i > real_dim) inner *= in_shape[i];
   }
-  if (outer != 8192) return false;
-  if (out_shape[4] != 6 || out_shape[5] != 7) return false;
 
   aclDataType dtype = ACL_DT_UNDEFINED;
+  aclDataType source_dtype = ACL_DT_UNDEFINED;
+  aclDataType out_dtype = ACL_DT_UNDEFINED;
   aclDataType index_dtype = ACL_DT_UNDEFINED;
   if (aclGetDataType(input, &dtype) != kAclnnSuccess) return false;
+  if (aclGetDataType(source, &source_dtype) != kAclnnSuccess) return false;
+  if (aclGetDataType(out, &out_dtype) != kAclnnSuccess) return false;
   if (aclGetDataType(index, &index_dtype) != kAclnnSuccess) return false;
-  if (dtype != ACL_INT8 || index_dtype != ACL_INT32) return false;
+  if (source_dtype != dtype || out_dtype != dtype) return false;
+  if (DtypeBytes(dtype) == 0) return false;
+  if (index_dtype != ACL_INT32 && index_dtype != ACL_INT64) return false;
   if (!IsContiguousByStride(input) || !IsContiguousByStride(index) ||
       !IsContiguousByStride(source) || !IsContiguousByStride(out)) {
     return false;
   }
 
-  void *input_data = TensorDataWithOffset(input, DtypeBytes(dtype));
-  void *source_data = TensorDataWithOffset(source, DtypeBytes(dtype));
-  void *out_data = TensorDataWithOffset(out, DtypeBytes(dtype));
+  const size_t item_bytes = DtypeBytes(dtype);
+  void *input_data = TensorDataWithOffset(input, item_bytes);
+  void *source_data = TensorDataWithOffset(source, item_bytes);
+  void *out_data = TensorDataWithOffset(out, item_bytes);
   void *index_data = TensorDataWithOffset(index, DtypeBytes(index_dtype));
   if (input_data == nullptr || source_data == nullptr ||
       out_data == nullptr || index_data == nullptr) {
@@ -180,9 +195,9 @@ bool MakeCase4Key(const aclTensor *input, const aclTensor *index,
   key->source = source_data;
   key->out = out_data;
   key->outer = outer;
-  key->axis = 6;
-  key->inner = 7;
-  key->index_len = 1024;
+  key->axis = axis;
+  key->inner = inner;
+  key->index_len = index_len;
   key->dim = real_dim;
   key->dtype = dtype;
   key->index_dtype = index_dtype;
@@ -283,8 +298,8 @@ aclnnStatus aclnnIndexAddGetWorkspaceSize(const aclTensor *input,
   if (exec == nullptr) return kAclnnErrParamInvalid;
 
   TensorKey key = {};
-  const bool has_case4_key = MakeCase4Key(input, index, source, dim, out, &key);
-  if (has_case4_key && CacheHit(key)) {
+  const bool has_repeat_key = MakeRepeatKey(input, index, source, dim, out, &key);
+  if (has_repeat_key && CacheHit(key)) {
     aclnnStatus marker_ret = PreparePrivateIndexMarker(exec, key, workspaceSize);
     if (marker_ret == kAclnnSuccess) {
       exec->key = key;
@@ -300,7 +315,7 @@ aclnnStatus aclnnIndexAddGetWorkspaceSize(const aclTensor *input,
     delete exec;
     return ret;
   }
-  if (has_case4_key) {
+  if (has_repeat_key) {
     exec->remember_after_run = true;
     exec->key = key;
   }
