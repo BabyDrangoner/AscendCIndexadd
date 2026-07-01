@@ -406,4 +406,15 @@ Conclusion: full pass and faster than v141 by 27.688us, validating that Pack4 sc
 - SHA256: `a57922ddeeac813a19a95f804fd11fda3046c23b994105ef6bc0f5a75de25493`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-07-01 12:10:56 CST, workId `IndexAdd_v143_pack4_idle_skip_indexcopy.zip`.
-- Monitor: pending as of 2026-07-01 12:11:07 CST; ranking row still points to v142's 2026-07-01 11:55:54 result.
+- Official result:
+
+```text
+Case1: Pass, Result: 47.9
+Case2: Pass, Result: 12627.204
+Case3: Pass, Result: 60725.62
+Case4: Pass, Result: 1729358.536
+Case5: Pass, Result: 15635.672
+prof_sum: 1818394.932
+```
+
+Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142.188us. Skipping idle-block index copy is not beneficial; either the added branch/code shape hurts the hot kernel, or the idle copy was not visible in profiling.
