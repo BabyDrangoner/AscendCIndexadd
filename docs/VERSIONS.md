@@ -570,3 +570,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `1d2c21668a366da2d8153d5cdb898f65eed84b33f294efc5296e8460fe0495f4`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: submitted at `2026-07-01 21:34:44 CST` as `IndexAdd_v206_gatherreduce_cached_block24.zip`; first monitor still shows the old `2026/07/01 19:47:05` ranked result, so the v206 evaluation is pending.
+
+## v207 gatherb-reduce
+
+- Change: add an exact Case4 `Gatherb` reduction path before v206's element-wise GatherReduce. Each 512x7 int8 source tile is copied into a padded 512x16 layout, cast to half, then gathered by row as 32-byte `uint16_t` blocks. The gathered half rows are cast to int16 and reduced with the same aligned vector tree, using only the first 7 lanes for the final int8 output.
+- Rationale: PyTorch's CUDA `index_add` switches large-index cases to source/index-major parallelism with atomic add, but Ascend's tiny 7-byte row atomic path has stayed command-bound. This candidate keeps the non-atomic per-outer reduction model while reducing gather offset work from 8 offsets per row to 1 offset per row and keeping every vector add 32-byte aligned.
+- Package: `IndexAdd_v207_gatherb_reduce.zip`
+- SHA256: `516d675b7348d177fd2a980b80de0eadfe99c07f22a64f835e249c129b8049f6`
+- Verification: Docker build passed; top-level host/kernel source matches the zip. The first half `Gatherb` attempt failed in the offline c220 channel, so the final build uses `uint16_t` LocalTensor views for `Gatherb` and casts the gathered buffer through a half view.
+- Submit: not submitted; `submit_hiascend.sh --dry-run --topic IndexAdd` returned `401 未登录` at 2026-07-01 23:51 CST, so a fresh HiAscend login cookie is required before official evaluation.

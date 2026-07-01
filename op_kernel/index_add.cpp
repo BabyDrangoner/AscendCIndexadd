@@ -19,6 +19,10 @@ constexpr uint32_t kSmallInnerGroupRows = 256;
 constexpr uint32_t kCase4I8AlignedRows = 32;
 constexpr uint32_t kCase4MaskReduceTile = 512;
 constexpr uint32_t kCase4MaskReduceWidth = 8;
+constexpr uint32_t kCase4GatherbWidth = 16;
+constexpr uint32_t kCase4GatherbElems =
+    kCase4MaskReduceTile * kCase4GatherbWidth;
+constexpr uint32_t kCase4GatherbOffsetStride = 1024;
 constexpr uint32_t kCase4MaskReduceElems =
     kCase4MaskReduceTile * kCase4MaskReduceWidth;
 constexpr uint32_t kCase4MaskReduceMaskBytes = kCase4MaskReduceElems / 8;
@@ -175,6 +179,10 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
+    if (UseCase4GatherbReduceI8Path()) {
+      ProcessCase4GatherbReduceI8();
+      return;
+    }
     if (UseCase4GatherReduceI8Path()) {
       ProcessCase4GatherReduceI8();
       return;
@@ -335,6 +343,12 @@ class IndexAddKernel {
   }
 
   __aicore__ inline bool UseCase4GatherReduceI8Path() const {
+    return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
+           ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
+           index_len_ == 1024 && outer_ == 120;
+  }
+
+  __aicore__ inline bool UseCase4GatherbReduceI8Path() const {
     return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
            ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
            index_len_ == 1024 && outer_ == 120;
@@ -1158,6 +1172,227 @@ class IndexAddKernel {
     if (rows <= 128) return 128;
     if (rows <= 256) return 256;
     return 512;
+  }
+
+  __aicore__ inline void BuildCase4GatherbOffsets(
+      LocalTensor<uint32_t>& offsets, LocalTensor<int32_t>& idx_values,
+      const uint32_t tile, const uint32_t off_base, uint32_t& c0,
+      uint32_t& c1, uint32_t& c2, uint32_t& c3, uint32_t& c4,
+      uint32_t& c5, uint32_t& s0, uint32_t& s1, uint32_t& s2,
+      uint32_t& s3, uint32_t& s4, uint32_t& s5) {
+    c0 = 0;
+    c1 = 0;
+    c2 = 0;
+    c3 = 0;
+    c4 = 0;
+    c5 = 0;
+    const uint32_t base = tile * kCase4MaskReduceTile;
+    for (uint32_t i = 0; i < kCase4MaskReduceTile; ++i) {
+      switch (static_cast<uint32_t>(idx_values.GetValue(base + i))) {
+        case 0: ++c0; break;
+        case 1: ++c1; break;
+        case 2: ++c2; break;
+        case 3: ++c3; break;
+        case 4: ++c4; break;
+        case 5: ++c5; break;
+        default: break;
+      }
+    }
+
+    const uint32_t p0 = Case4GatherPaddedRows(c0);
+    const uint32_t p1 = Case4GatherPaddedRows(c1);
+    const uint32_t p2 = Case4GatherPaddedRows(c2);
+    const uint32_t p3 = Case4GatherPaddedRows(c3);
+    const uint32_t p4 = Case4GatherPaddedRows(c4);
+    s0 = 0;
+    s1 = s0 + p0;
+    s2 = s1 + p1;
+    s3 = s2 + p2;
+    s4 = s3 + p3;
+    s5 = s4 + p4;
+    uint32_t w0 = s0;
+    uint32_t w1 = s1;
+    uint32_t w2 = s2;
+    uint32_t w3 = s3;
+    uint32_t w4 = s4;
+    uint32_t w5 = s5;
+
+    for (uint32_t i = 0; i < kCase4GatherbOffsetStride; ++i) {
+      offsets.SetValue(off_base + i, 0);
+    }
+    for (uint32_t i = 0; i < kCase4MaskReduceTile; ++i) {
+      const uint32_t row_off =
+          i * kCase4GatherbWidth * static_cast<uint32_t>(sizeof(half));
+      switch (static_cast<uint32_t>(idx_values.GetValue(base + i))) {
+        case 0: offsets.SetValue(off_base + w0++, row_off); break;
+        case 1: offsets.SetValue(off_base + w1++, row_off); break;
+        case 2: offsets.SetValue(off_base + w2++, row_off); break;
+        case 3: offsets.SetValue(off_base + w3++, row_off); break;
+        case 4: offsets.SetValue(off_base + w4++, row_off); break;
+        case 5: offsets.SetValue(off_base + w5++, row_off); break;
+        default: break;
+      }
+    }
+  }
+
+  __aicore__ inline void ReduceCase4GatherbRows(
+      LocalTensor<int16_t>& partial, LocalTensor<uint16_t>& gathered_u16,
+      LocalTensor<half>& gathered_h, LocalTensor<int16_t>& gathered_i16,
+      LocalTensor<uint16_t>& src_u16,
+      LocalTensor<uint32_t>& offsets, const uint32_t off_base,
+      const uint32_t start, const uint32_t rows, const uint32_t axis_id) {
+    if (rows == 0) {
+      return;
+    }
+    const uint32_t padded_rows = Case4GatherPaddedRows(rows);
+    const uint32_t elems = rows * kCase4GatherbWidth;
+    const uint32_t padded_elems = padded_rows * kCase4GatherbWidth;
+    GatherRepeatParams gather_params(1, 8);
+    Gatherb(gathered_u16, src_u16, offsets[off_base + start],
+            static_cast<uint8_t>(padded_rows >> 3), gather_params);
+    PipeBarrier<PIPE_V>();
+    Cast(gathered_i16, gathered_h, RoundMode::CAST_RINT, padded_elems);
+    PipeBarrier<PIPE_V>();
+    if (padded_elems > elems) {
+      Duplicate(gathered_i16[elems], static_cast<int16_t>(0),
+                static_cast<int32_t>(padded_elems - elems));
+      PipeBarrier<PIPE_V>();
+    }
+
+    for (uint32_t n = padded_rows; n > 8; n >>= 1) {
+      const uint32_t h = n >> 1;
+      const uint32_t add_elems = h * kCase4GatherbWidth;
+      Add(gathered_i16, gathered_i16, gathered_i16[add_elems],
+          static_cast<int32_t>(add_elems));
+      PipeBarrier<PIPE_V>();
+    }
+
+    const uint32_t partial_base = axis_id * 8 * kCase4GatherbWidth;
+    for (uint32_t r = 0; r < 8; ++r) {
+      const uint32_t row_off = r * kCase4GatherbWidth;
+      const uint32_t part_off = partial_base + row_off;
+      partial.SetValue(part_off + 0,
+                       partial.GetValue(part_off + 0) +
+                           gathered_i16.GetValue(row_off + 0));
+      partial.SetValue(part_off + 1,
+                       partial.GetValue(part_off + 1) +
+                           gathered_i16.GetValue(row_off + 1));
+      partial.SetValue(part_off + 2,
+                       partial.GetValue(part_off + 2) +
+                           gathered_i16.GetValue(row_off + 2));
+      partial.SetValue(part_off + 3,
+                       partial.GetValue(part_off + 3) +
+                           gathered_i16.GetValue(row_off + 3));
+      partial.SetValue(part_off + 4,
+                       partial.GetValue(part_off + 4) +
+                           gathered_i16.GetValue(row_off + 4));
+      partial.SetValue(part_off + 5,
+                       partial.GetValue(part_off + 5) +
+                           gathered_i16.GetValue(row_off + 5));
+      partial.SetValue(part_off + 6,
+                       partial.GetValue(part_off + 6) +
+                           gathered_i16.GetValue(row_off + 6));
+    }
+  }
+
+  __aicore__ inline void ProcessCase4GatherbReduceI8() {
+    constexpr uint32_t kPartialElems = 6 * 8 * kCase4GatherbWidth;
+    LocalTensor<uint32_t> offsets = index32_buf_.Get<uint32_t>();
+    LocalTensor<int32_t> idx_values = src_buf_.Get<int32_t>();
+    LocalTensor<int8_t> src_i8 = src_buf_.Get<int8_t>();
+    LocalTensor<half> src_h = src_cast_buf_.Get<half>();
+    LocalTensor<uint16_t> src_u16 = src_cast_buf_.Get<uint16_t>();
+    LocalTensor<half> gathered_h = out_buf_.Get<half>();
+    LocalTensor<uint16_t> gathered_u16 = out_buf_.Get<uint16_t>();
+    LocalTensor<int16_t> gathered_i16 = acc_buf_.Get<int16_t>();
+    LocalTensor<int16_t> partial =
+        index32_buf_.Get<int16_t>()[kCase4GatherbOffsetStride * 4];
+    DataCopyPadParams pad{false, 0, 0, 0};
+    DataCopyParams row_copy{1, 42, 0, 0};
+    DataCopyParams src_copy{static_cast<uint16_t>(kCase4MaskReduceTile), 7, 0,
+                            kCase4GatherbWidth - 7};
+
+    uint32_t t0_c0, t0_c1, t0_c2, t0_c3, t0_c4, t0_c5;
+    uint32_t t0_s0, t0_s1, t0_s2, t0_s3, t0_s4, t0_s5;
+    uint32_t t1_c0, t1_c1, t1_c2, t1_c3, t1_c4, t1_c5;
+    uint32_t t1_s0, t1_s1, t1_s2, t1_s3, t1_s4, t1_s5;
+    RawCopyIndexTile(idx_values, 0, 1024);
+    BuildCase4GatherbOffsets(offsets, idx_values, 0, 0, t0_c0, t0_c1, t0_c2,
+                             t0_c3, t0_c4, t0_c5, t0_s0, t0_s1, t0_s2,
+                             t0_s3, t0_s4, t0_s5);
+    BuildCase4GatherbOffsets(offsets, idx_values, 1, kCase4GatherbOffsetStride,
+                             t1_c0, t1_c1, t1_c2, t1_c3, t1_c4, t1_c5,
+                             t1_s0, t1_s1, t1_s2, t1_s3, t1_s4, t1_s5);
+
+    const uint32_t core_num = GetBlockNum();
+    const uint32_t cid = GetBlockIdx();
+    for (uint32_t outer_id = cid; outer_id < outer_; outer_id += core_num) {
+      Duplicate(partial, static_cast<int16_t>(0),
+                static_cast<int32_t>(kPartialElems));
+      PipeBarrier<PIPE_V>();
+
+      DataCopyPad(src_i8, source_i8_gm_[SourceOffset(outer_id, 0, 0)],
+                  src_copy, pad);
+      PipeBarrier<PIPE_MTE2>();
+      Cast(src_h, src_i8, RoundMode::CAST_NONE, kCase4GatherbElems);
+      PipeBarrier<PIPE_V>();
+      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
+                             src_u16, offsets, 0, t0_s0, t0_c0, 0);
+      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
+                             src_u16, offsets, 0, t0_s1, t0_c1, 1);
+      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
+                             src_u16, offsets, 0, t0_s2, t0_c2, 2);
+      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
+                             src_u16, offsets, 0, t0_s3, t0_c3, 3);
+      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
+                             src_u16, offsets, 0, t0_s4, t0_c4, 4);
+      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
+                             src_u16, offsets, 0, t0_s5, t0_c5, 5);
+
+      DataCopyPad(src_i8,
+                  source_i8_gm_[SourceOffset(outer_id, kCase4MaskReduceTile, 0)],
+                  src_copy, pad);
+      PipeBarrier<PIPE_MTE2>();
+      Cast(src_h, src_i8, RoundMode::CAST_NONE, kCase4GatherbElems);
+      PipeBarrier<PIPE_V>();
+      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
+                             src_u16, offsets, kCase4GatherbOffsetStride,
+                             t1_s0, t1_c0, 0);
+      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
+                             src_u16, offsets, kCase4GatherbOffsetStride,
+                             t1_s1, t1_c1, 1);
+      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
+                             src_u16, offsets, kCase4GatherbOffsetStride,
+                             t1_s2, t1_c2, 2);
+      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
+                             src_u16, offsets, kCase4GatherbOffsetStride,
+                             t1_s3, t1_c3, 3);
+      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
+                             src_u16, offsets, kCase4GatherbOffsetStride,
+                             t1_s4, t1_c4, 4);
+      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
+                             src_u16, offsets, kCase4GatherbOffsetStride,
+                             t1_s5, t1_c5, 5);
+
+      DataCopyPad(src_i8, input_i8_gm_[InputOffset(outer_id, 0, 0)], row_copy,
+                  pad);
+      PipeBarrier<PIPE_MTE2>();
+      for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
+        const uint32_t dst_base = axis_id * 7;
+        const uint32_t partial_base = axis_id * 8 * kCase4GatherbWidth;
+        for (uint32_t w = 0; w < 7; ++w) {
+          int32_t sum = static_cast<int32_t>(src_i8.GetValue(dst_base + w));
+          for (uint32_t r = 0; r < 8; ++r) {
+            sum += static_cast<int32_t>(
+                partial.GetValue(partial_base + r * kCase4GatherbWidth + w));
+          }
+          src_i8.SetValue(dst_base + w, static_cast<int8_t>(sum));
+        }
+      }
+      DataCopyPad(output_i8_gm_[InputOffset(outer_id, 0, 0)], src_i8,
+                  row_copy);
+      PipeBarrier<PIPE_MTE3>();
+    }
   }
 
   __aicore__ inline void StoreCase4GatherRowOffsets(
