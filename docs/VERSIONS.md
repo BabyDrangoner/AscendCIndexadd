@@ -672,7 +672,8 @@ Conclusion: full pass, proving direct int8 DMA atomic is legal on the platform. 
 - Package: `IndexAdd_v163_owner_atomic_i8.zip`
 - SHA256: `9463a82bcb25745795d0aad20c9881a8fc75f263e655919dff086c6a4ce52f65`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
-- Submit: pending.
+- Submit: 2026-07-01 18:36:51 CST, workId `IndexAdd_v181_opapi_empty_marker.zip`.
+- Official result: pending; as of 18:37 CST the ranking row still pointed to v172's `2026/07/01 17:11:35` result.
 
 ## v164 owner-atomic-once
 
