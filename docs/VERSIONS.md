@@ -405,4 +405,5 @@ Conclusion: full pass and faster than v141 by 27.688us, validating that Pack4 sc
 - Package: `IndexAdd_v143_pack4_idle_skip_indexcopy.zip`
 - SHA256: `a57922ddeeac813a19a95f804fd11fda3046c23b994105ef6bc0f5a75de25493`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
-- Submit: pending.
+- Submit: 2026-07-01 12:10:56 CST, workId `IndexAdd_v143_pack4_idle_skip_indexcopy.zip`.
+- Monitor: pending as of 2026-07-01 12:11:07 CST; ranking row still points to v142's 2026-07-01 11:55:54 result.
