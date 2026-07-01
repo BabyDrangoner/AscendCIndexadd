@@ -363,4 +363,5 @@ Conclusion: full pass but worse than the v121 recovery result by 252.848us. Remo
 - Package: `IndexAdd_v141_pack4_shared_loadcalc.zip`
 - SHA256: `9b0d486359635326fcf5369324c5ddaea4710313063710420ce659b7d31c4293`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
-- Submit: pending.
+- Submit: 2026-07-01 11:44:59 CST, workId `IndexAdd_v141_pack4_shared_loadcalc.zip`.
+- Monitor: pending as of 2026-07-01 11:45:14 CST; ranking row still points to v140's 2026-07-01 11:34:32 result.
