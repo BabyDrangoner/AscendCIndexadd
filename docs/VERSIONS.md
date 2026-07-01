@@ -629,3 +629,12 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - SHA256: `9463a82bcb25745795d0aad20c9881a8fc75f263e655919dff086c6a4ce52f65`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: pending.
+
+## v164 owner-atomic-once
+
+- Change: keep v163's owner-local direct int8 atomic algorithm, but split it into two owner-local phases: first copy all owned `input` outer slices to `output`, then enable `SetAtomicAdd<int8_t>()` once per core and scatter all owned source rows before a single `SetAtomicNone()`.
+- Rationale: removes 8192 per-outer atomic mode toggles from v163 while preserving the no-global-sync ownership property. This should be the faster direct atomic shape if GM->UB source reads are unaffected by DMA atomic state.
+- Package: `IndexAdd_v164_owner_atomic_once.zip`
+- SHA256: `cb2db7be7059f60c574e9ce172b37d3afd152617b077a14dddedbc1c2aa675d5`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: pending.

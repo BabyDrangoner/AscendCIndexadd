@@ -1226,20 +1226,21 @@ class IndexAddKernel {
       DataCopyPad(output_i8_gm_[InputOffset(outer_id, 0, 0)], row,
                   outer_copy);
       PipeBarrier<PIPE_MTE3>();
+    }
 
+    SetAtomicAdd<int8_t>();
+    for (uint32_t outer_id = cid; outer_id < outer_; outer_id += core_num) {
       DataCopyPad(buf, source_i8_gm_[SourceOffset(outer_id, 0, 0)], src_copy,
                   pad);
       PipeBarrier<PIPE_MTE2>();
-
-      SetAtomicAdd<int8_t>();
       for (uint32_t i = 0; i < 1024; ++i) {
         const uint32_t axis_id = static_cast<uint32_t>(idx.GetValue(i));
         DataCopyPad(output_i8_gm_[InputOffset(outer_id, axis_id, 0)],
                     buf[i * 7], row_copy);
       }
-      SetAtomicNone();
       PipeBarrier<PIPE_MTE3>();
     }
+    SetAtomicNone();
   }
 
   __aicore__ inline void ProcessCase4MaskReduceI16() {
