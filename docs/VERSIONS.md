@@ -488,4 +488,14 @@ Conclusion: full pass and better than the 12:23 v121 recovery run by 14.088us, b
 - Package: `IndexAdd_v146_pack5_blockdim24.zip`
 - SHA256: `cc6ba488923156c52f8bc2f7c5f65e21818eca8b58f6c8e2762e70e83ea1c2eb`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: 2026-07-01 13:11:58 CST, workId `IndexAdd_v146_pack5_blockdim24.zip`.
+- Official result: pending; as of 13:20 CST the ranking row still pointed to v145's `2026/07/01 13:01:52` result.
+
+## v147 case4-pack8-packed
+
+- Change: add an exact int8 Case4 Pack8 source-order scalar path for `index=int32`, `index_len=1024`, and `outer % 8 == 0`. Four 16KB UB buffers each hold two 7KB source tiles at offsets `0` and `8192`, leaving slack for unaligned `LoadPacked7`; the shared index tile remains cached in `index32_buf_`.
+- Rationale: the profile note indicates the hot Case4 has `outer=8192`, so v144 Pack3 and v145 Pack5 likely do not hit the hot path. Pack8 does hit `8192 % 8 == 0` and halves the Pack4 group count from 2048 to 1024 while preserving sequential source access and packed byte-wise accumulation.
+- Package: `IndexAdd_v147_case4_pack8_packed.zip`
+- SHA256: `bf13f69a9ad1da18de05964cc7ef899c40dfdd0ebde6cc6014596cb1a8fe0166`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: pending.

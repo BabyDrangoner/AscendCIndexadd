@@ -170,6 +170,9 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
   const bool use_case4_i8_outer1 =
       use_case4_outer_owned && dtype_mode == 1 &&
       (index_dtype_size == 4 || index_dtype_size == 8) && index_len >= 512;
+  const bool use_case4_i8_pack8 =
+      use_case4_i8_outer1 && index_dtype_size == 4 && index_len == 1024 &&
+      ((outer & 7) == 0);
   const bool use_case4_i8_pack5 =
       use_case4_i8_outer1 && index_dtype_size == 4 && index_len == 1024 &&
       (outer % 5 == 0);
@@ -190,6 +193,8 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
             ? 1
             : 32 / GcdU64(inner1_row_bytes & 31, 32);
     work_units = (static_cast<uint64_t>(outer) + row_group - 1) / row_group;
+  } else if (use_case4_i8_pack8) {
+    work_units = static_cast<uint64_t>(outer) / 8;
   } else if (use_case4_i8_pack5) {
     work_units = static_cast<uint64_t>(outer) / 5;
   } else if (use_case4_i8_outer1) {

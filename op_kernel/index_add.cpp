@@ -175,6 +175,10 @@ class IndexAddKernel {
       ProcessCase4MaskReduceI16();
       return;
     }
+    if (UseCase4Int8Pack8Path()) {
+      ProcessCase4Pack8Int8();
+      return;
+    }
     if (UseCase4Int8Pack5Path()) {
       ProcessCase4Pack5Int8();
       return;
@@ -302,6 +306,12 @@ class IndexAddKernel {
     return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
            ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
            index_len_ >= 512 && ((outer_ & 3) == 0);
+  }
+
+  __aicore__ inline bool UseCase4Int8Pack8Path() const {
+    return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
+           ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
+           index_len_ == 1024 && ((outer_ & 7) == 0);
   }
 
   __aicore__ inline bool UseCase4Int8Pack5Path() const {
@@ -1515,6 +1525,161 @@ class IndexAddKernel {
       STORE_I8P5_OUTER(e, outer4);
 #undef STORE_I8P5_OUTER
 #undef STORE_I8P5_ACC
+    }
+  }
+
+  __aicore__ inline void ProcessCase4Pack8Int8() {
+    LocalTensor<int32_t> idx = index32_buf_.Get<int32_t>();
+    LocalTensor<int8_t> src0 = src_buf_.Get<int8_t>();
+    LocalTensor<int8_t> src1 = src_buf_.Get<int8_t>()[8192];
+    LocalTensor<int8_t> src2 = src_cast_buf_.Get<int8_t>();
+    LocalTensor<int8_t> src3 = src_cast_buf_.Get<int8_t>()[8192];
+    LocalTensor<int8_t> src4 = acc_buf_.Get<int8_t>();
+    LocalTensor<int8_t> src5 = acc_buf_.Get<int8_t>()[8192];
+    LocalTensor<int8_t> src6 = out_buf_.Get<int8_t>();
+    LocalTensor<int8_t> src7 = out_buf_.Get<int8_t>()[8192];
+    LocalTensor<int8_t> row = src0;
+    LocalTensor<uint64_t> src0u = src_buf_.Get<uint64_t>();
+    LocalTensor<uint64_t> src1u = src_buf_.Get<uint64_t>()[1024];
+    LocalTensor<uint64_t> src2u = src_cast_buf_.Get<uint64_t>();
+    LocalTensor<uint64_t> src3u = src_cast_buf_.Get<uint64_t>()[1024];
+    LocalTensor<uint64_t> src4u = acc_buf_.Get<uint64_t>();
+    LocalTensor<uint64_t> src5u = acc_buf_.Get<uint64_t>()[1024];
+    LocalTensor<uint64_t> src6u = out_buf_.Get<uint64_t>();
+    LocalTensor<uint64_t> src7u = out_buf_.Get<uint64_t>()[1024];
+    LocalTensor<uint64_t> rowu = src0u;
+    DataCopyPadParams pad{false, 0, 0, 0};
+    DataCopyParams rows_copy{1, 42, 0, 0};
+    DataCopyParams src_copy{1, static_cast<uint16_t>(1024 * 7), 0, 0};
+    const uint32_t groups = outer_ >> 3;
+    const uint32_t core_num = GetBlockNum();
+    const uint32_t cid = GetBlockIdx();
+    RawCopyIndexTile(idx, 0, 1024);
+
+    for (uint32_t group = cid; group < groups; group += core_num) {
+      const uint32_t outer0 = group << 3;
+      const uint32_t outer1 = outer0 + 1;
+      const uint32_t outer2 = outer0 + 2;
+      const uint32_t outer3 = outer0 + 3;
+      const uint32_t outer4 = outer0 + 4;
+      const uint32_t outer5 = outer0 + 5;
+      const uint32_t outer6 = outer0 + 6;
+      const uint32_t outer7 = outer0 + 7;
+
+#define DECL_I8P8_PACK(P) \
+      uint64_t P##0 = 0; \
+      uint64_t P##1 = 0; \
+      uint64_t P##2 = 0; \
+      uint64_t P##3 = 0; \
+      uint64_t P##4 = 0; \
+      uint64_t P##5 = 0
+      DECL_I8P8_PACK(a);
+      DECL_I8P8_PACK(b);
+      DECL_I8P8_PACK(c);
+      DECL_I8P8_PACK(d);
+      DECL_I8P8_PACK(e);
+      DECL_I8P8_PACK(f);
+      DECL_I8P8_PACK(g);
+      DECL_I8P8_PACK(h);
+#undef DECL_I8P8_PACK
+
+#define LOAD_I8P8_OUTER(P, OUTER) \
+      do { \
+        DataCopyPad(row, input_i8_gm_[InputOffset((OUTER), 0, 0)], rows_copy, pad); \
+        PipeBarrier<PIPE_MTE2>(); \
+        P##0 = LoadPacked7(rowu, 0); \
+        P##1 = LoadPacked7(rowu, 7); \
+        P##2 = LoadPacked7(rowu, 14); \
+        P##3 = LoadPacked7(rowu, 21); \
+        P##4 = LoadPacked7(rowu, 28); \
+        P##5 = LoadPacked7(rowu, 35); \
+      } while (0)
+      LOAD_I8P8_OUTER(a, outer0);
+      LOAD_I8P8_OUTER(b, outer1);
+      LOAD_I8P8_OUTER(c, outer2);
+      LOAD_I8P8_OUTER(d, outer3);
+      LOAD_I8P8_OUTER(e, outer4);
+      LOAD_I8P8_OUTER(f, outer5);
+      LOAD_I8P8_OUTER(g, outer6);
+      LOAD_I8P8_OUTER(h, outer7);
+#undef LOAD_I8P8_OUTER
+
+      DataCopyPad(src0, source_i8_gm_[SourceOffset(outer0, 0, 0)],
+                  src_copy, pad);
+      DataCopyPad(src1, source_i8_gm_[SourceOffset(outer1, 0, 0)],
+                  src_copy, pad);
+      DataCopyPad(src2, source_i8_gm_[SourceOffset(outer2, 0, 0)],
+                  src_copy, pad);
+      DataCopyPad(src3, source_i8_gm_[SourceOffset(outer3, 0, 0)],
+                  src_copy, pad);
+      DataCopyPad(src4, source_i8_gm_[SourceOffset(outer4, 0, 0)],
+                  src_copy, pad);
+      DataCopyPad(src5, source_i8_gm_[SourceOffset(outer5, 0, 0)],
+                  src_copy, pad);
+      DataCopyPad(src6, source_i8_gm_[SourceOffset(outer6, 0, 0)],
+                  src_copy, pad);
+      DataCopyPad(src7, source_i8_gm_[SourceOffset(outer7, 0, 0)],
+                  src_copy, pad);
+      PipeBarrier<PIPE_MTE2>();
+
+      for (uint32_t i = 0; i < 1024; ++i) {
+        const uint32_t src_off = i * 7;
+#define ADD_I8P8_PACK(P, R, V) \
+        do { \
+          P##R = AddPackedI8x7(P##R, V); \
+        } while (0)
+#define ADD_I8P8_ROW8(R) \
+        do { \
+          const uint64_t va = LoadPacked7(src0u, src_off); \
+          const uint64_t vb = LoadPacked7(src1u, src_off); \
+          const uint64_t vc = LoadPacked7(src2u, src_off); \
+          const uint64_t vd = LoadPacked7(src3u, src_off); \
+          const uint64_t ve = LoadPacked7(src4u, src_off); \
+          const uint64_t vf = LoadPacked7(src5u, src_off); \
+          const uint64_t vg = LoadPacked7(src6u, src_off); \
+          const uint64_t vh = LoadPacked7(src7u, src_off); \
+          ADD_I8P8_PACK(a, R, va); \
+          ADD_I8P8_PACK(b, R, vb); \
+          ADD_I8P8_PACK(c, R, vc); \
+          ADD_I8P8_PACK(d, R, vd); \
+          ADD_I8P8_PACK(e, R, ve); \
+          ADD_I8P8_PACK(f, R, vf); \
+          ADD_I8P8_PACK(g, R, vg); \
+          ADD_I8P8_PACK(h, R, vh); \
+        } while (0)
+        switch (static_cast<uint32_t>(idx.GetValue(i))) {
+          case 0: ADD_I8P8_ROW8(0); break;
+          case 1: ADD_I8P8_ROW8(1); break;
+          case 2: ADD_I8P8_ROW8(2); break;
+          case 3: ADD_I8P8_ROW8(3); break;
+          case 4: ADD_I8P8_ROW8(4); break;
+          case 5: ADD_I8P8_ROW8(5); break;
+          default: break;
+        }
+#undef ADD_I8P8_ROW8
+#undef ADD_I8P8_PACK
+      }
+
+#define STORE_I8P8_ACC(P, R) \
+      StorePacked7(row, (R) * 7, P##R)
+#define STORE_I8P8_OUTER(P, OUTER) \
+      do { \
+        STORE_I8P8_ACC(P, 0); STORE_I8P8_ACC(P, 1); \
+        STORE_I8P8_ACC(P, 2); STORE_I8P8_ACC(P, 3); \
+        STORE_I8P8_ACC(P, 4); STORE_I8P8_ACC(P, 5); \
+        DataCopyPad(output_i8_gm_[InputOffset((OUTER), 0, 0)], row, rows_copy); \
+        PipeBarrier<PIPE_MTE3>(); \
+      } while (0)
+      STORE_I8P8_OUTER(a, outer0);
+      STORE_I8P8_OUTER(b, outer1);
+      STORE_I8P8_OUTER(c, outer2);
+      STORE_I8P8_OUTER(d, outer3);
+      STORE_I8P8_OUTER(e, outer4);
+      STORE_I8P8_OUTER(f, outer5);
+      STORE_I8P8_OUTER(g, outer6);
+      STORE_I8P8_OUTER(h, outer7);
+#undef STORE_I8P8_OUTER
+#undef STORE_I8P8_ACC
     }
   }
 
