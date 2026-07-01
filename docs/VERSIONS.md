@@ -276,3 +276,12 @@ Conclusion: invalid candidate. Always registering the KFC object did not fix the
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 14:23:56 CST, workId `IndexAdd_v151_kfc_hotcase_outer8192.zip`.
 - Monitor: pending as of 2026-07-01 14:24 CST; ranking row still points to the older v148 result from 2026-07-01 13:31:43.
+
+## v153 kfc-gmb-m64-hotcase-outer8192
+
+- Change: keep the v151 exact-hotcase guard, but increase the dense KFC Matmul outer tile from M=32 to M=64 while keeping the generated onehot B matrix in per-block GM workspace.
+- Rationale: if the KFC dense path runs correctly on the hot Case4, M=64 halves the number of Matmul commands versus v151/v135 and should reduce client/server scheduling and onehot-B setup overhead. This is a direct A/B against the M32 GM-B version.
+- Package: `IndexAdd_v153_kfc_gmb_m64_outer8192.zip`
+- SHA256: `b868965fe0424255140ab34c527eadc5cc9cefc3289b064e1412feea8b426e5f`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: not submitted yet. Wait for the true v151 result before overwriting the platform row.
