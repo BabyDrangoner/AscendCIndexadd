@@ -1326,12 +1326,16 @@ class IndexAddKernel {
 
     const uint32_t core_num = GetBlockNum();
     const uint32_t cid = GetBlockIdx();
-    for (uint32_t outer_id = cid; outer_id < outer_; outer_id += core_num) {
+    const uint32_t outer_groups = outer_ >> 1;
+    for (uint32_t group_id = cid; group_id < outer_groups; group_id += core_num) {
+      const uint32_t outer_id = group_id << 1;
       Duplicate(partial, static_cast<int16_t>(0),
                 static_cast<int32_t>(kPartialElems));
       PipeBarrier<PIPE_V>();
 
       DataCopyPad(src_i8, source_i8_gm_[SourceOffset(outer_id, 0, 0)],
+                  src_copy, pad);
+      DataCopyPad(src_i8[8], source_i8_gm_[SourceOffset(outer_id + 1, 0, 0)],
                   src_copy, pad);
       PipeBarrier<PIPE_MTE2>();
       Cast(src_h, src_i8, RoundMode::CAST_NONE, kCase4GatherbElems);
@@ -1351,6 +1355,10 @@ class IndexAddKernel {
 
       DataCopyPad(src_i8,
                   source_i8_gm_[SourceOffset(outer_id, kCase4MaskReduceTile, 0)],
+                  src_copy, pad);
+      DataCopyPad(src_i8[8],
+                  source_i8_gm_[SourceOffset(outer_id + 1,
+                                             kCase4MaskReduceTile, 0)],
                   src_copy, pad);
       PipeBarrier<PIPE_MTE2>();
       Cast(src_h, src_i8, RoundMode::CAST_NONE, kCase4GatherbElems);
@@ -1390,6 +1398,26 @@ class IndexAddKernel {
         }
       }
       DataCopyPad(output_i8_gm_[InputOffset(outer_id, 0, 0)], src_i8,
+                  row_copy);
+      PipeBarrier<PIPE_MTE3>();
+
+      DataCopyPad(src_i8, input_i8_gm_[InputOffset(outer_id + 1, 0, 0)],
+                  row_copy, pad);
+      PipeBarrier<PIPE_MTE2>();
+      for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
+        const uint32_t dst_base = axis_id * 7;
+        const uint32_t partial_base = axis_id * 8 * kCase4GatherbWidth;
+        for (uint32_t w = 0; w < 7; ++w) {
+          int32_t sum = static_cast<int32_t>(src_i8.GetValue(dst_base + w));
+          for (uint32_t r = 0; r < 8; ++r) {
+            sum += static_cast<int32_t>(
+                partial.GetValue(partial_base + r * kCase4GatherbWidth + 8 +
+                                 w));
+          }
+          src_i8.SetValue(dst_base + w, static_cast<int8_t>(sum));
+        }
+      }
+      DataCopyPad(output_i8_gm_[InputOffset(outer_id + 1, 0, 0)], src_i8,
                   row_copy);
       PipeBarrier<PIPE_MTE3>();
     }

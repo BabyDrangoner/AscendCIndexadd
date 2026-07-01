@@ -579,3 +579,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `516d675b7348d177fd2a980b80de0eadfe99c07f22a64f835e249c129b8049f6`
 - Verification: Docker build passed; top-level host/kernel source matches the zip. The first half `Gatherb` attempt failed in the offline c220 channel, so the final build uses `uint16_t` LocalTensor views for `Gatherb` and casts the gathered buffer through a half view.
 - Submit: not submitted; `submit_hiascend.sh --dry-run --topic IndexAdd` returned `401 未登录` at 2026-07-01 23:51 CST, so a fresh HiAscend login cookie is required before official evaluation.
+
+## v208 gatherb-outer2
+
+- Change: extend v207's exact Case4 `Gatherb` path to compute two outer slices per reduction. For each source tile, outer `2g` is copied into lanes 0..6 and outer `2g+1` into lanes 8..14 of the same padded 16-lane row, so a single row-block gather and tree-reduce produces both outputs.
+- Rationale: v207 still spends the same gather/reduce sequence once per outer. Because Case4 has `inner=7`, the padded 16-lane row has enough space for two outer slices. This tests whether packing two independent reductions into one vector lane group can nearly halve Case4's main-loop cost without changing the index classification.
+- Package: `IndexAdd_v208_gatherb_outer2.zip`
+- SHA256: `cec66742b23f7c57254d916e4f8a22d027c17a5c790657d2a58996c217ef5646`
+- Verification: Docker build passed; top-level host/kernel source matches the zip. Risk: the second outer copy writes to `src_i8[8]`, which compiled successfully but needs official/runtime validation for local MTE2 address alignment.
+- Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
