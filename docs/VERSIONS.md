@@ -551,4 +551,4 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - Package: `IndexAdd_v203_gatherreduce_outer120.zip`
 - SHA256: `1fbe395d6e21bfe19ff64e09579338c69c08121b91fc31e55adcbdd70324699d`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
-- Submit: not submitted.
+- Submit: submitted at `2026-07-01 21:18:18 CST` as `IndexAdd_v203_gatherreduce_outer120.zip`; first monitor still shows the old `2026/07/01 19:47:05` ranked result, so the v203 evaluation is pending.
