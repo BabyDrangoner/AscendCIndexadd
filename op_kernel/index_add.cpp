@@ -1292,6 +1292,27 @@ class IndexAddKernel {
       partial.SetValue(part_off + 6,
                        partial.GetValue(part_off + 6) +
                            gathered_i16.GetValue(row_off + 6));
+      partial.SetValue(part_off + 8,
+                       partial.GetValue(part_off + 8) +
+                           gathered_i16.GetValue(row_off + 8));
+      partial.SetValue(part_off + 9,
+                       partial.GetValue(part_off + 9) +
+                           gathered_i16.GetValue(row_off + 9));
+      partial.SetValue(part_off + 10,
+                       partial.GetValue(part_off + 10) +
+                           gathered_i16.GetValue(row_off + 10));
+      partial.SetValue(part_off + 11,
+                       partial.GetValue(part_off + 11) +
+                           gathered_i16.GetValue(row_off + 11));
+      partial.SetValue(part_off + 12,
+                       partial.GetValue(part_off + 12) +
+                           gathered_i16.GetValue(row_off + 12));
+      partial.SetValue(part_off + 13,
+                       partial.GetValue(part_off + 13) +
+                           gathered_i16.GetValue(row_off + 13));
+      partial.SetValue(part_off + 14,
+                       partial.GetValue(part_off + 14) +
+                           gathered_i16.GetValue(row_off + 14));
     }
   }
 

@@ -597,3 +597,13 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `e1f807b988229b153fa2ebf45333060d79edeedb93dbd6dcf2505dcb87d81679`
 - Verification: Docker build passed; top-level host/kernel source matches the zip.
 - Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
+- Risk note: do not submit this package. A source audit found that v208/v209/v210's outer2 reducer only accumulates lanes 0..6 into `partial`, while the second outer reads lanes 8..14 during writeback. The second outer would therefore miss all source additions.
+
+## v211 gatherb-outer2-fix-bd30
+
+- Change: fix v209's two-outer `Gatherb` reducer by accumulating both lane groups into `partial`: lanes 0..6 for outer `2g`, and lanes 8..14 for outer `2g+1`.
+- Rationale: the outer2 packing remains the most promising non-scalar Case4 path, but the first implementation only reduced the first packed outer. This candidate keeps the balanced `blockDim=30` schedule and restores correctness for the second outer.
+- Package: `IndexAdd_v211_gatherb_outer2_fix_bd30.zip`
+- SHA256: `e42ecff512dbb91643d92bcd6d116835c05121767c8d7a0e90318aa2eedc9cb7`
+- Verification: Docker build passed; top-level host/kernel source matches the zip.
+- Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
