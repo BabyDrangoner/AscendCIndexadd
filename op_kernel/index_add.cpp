@@ -1273,6 +1273,25 @@ class IndexAddKernel {
     PipeBarrier<PIPE_V>();
   }
 
+  __aicore__ inline void FinalReduceCase4GatherbPartial(
+      LocalTensor<int16_t>& partial) {
+    for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
+      const uint32_t partial_base = axis_id * 8 * kCase4GatherbWidth;
+      Add(partial[partial_base], partial[partial_base],
+          partial[partial_base + 4 * kCase4GatherbWidth],
+          static_cast<int32_t>(4 * kCase4GatherbWidth));
+      PipeBarrier<PIPE_V>();
+      Add(partial[partial_base], partial[partial_base],
+          partial[partial_base + 2 * kCase4GatherbWidth],
+          static_cast<int32_t>(2 * kCase4GatherbWidth));
+      PipeBarrier<PIPE_V>();
+      Add(partial[partial_base], partial[partial_base],
+          partial[partial_base + kCase4GatherbWidth],
+          static_cast<int32_t>(kCase4GatherbWidth));
+      PipeBarrier<PIPE_V>();
+    }
+  }
+
   __aicore__ inline void ProcessCase4GatherbReduceI8() {
     constexpr uint32_t kPartialElems = 6 * 8 * kCase4GatherbWidth;
     LocalTensor<uint32_t> offsets = index32_buf_.Get<uint32_t>();
@@ -1359,6 +1378,7 @@ class IndexAddKernel {
       ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
                              src_u16, offsets, kCase4GatherbOffsetStride,
                              t1_s5, t1_c5, 5);
+      FinalReduceCase4GatherbPartial(partial);
 
       DataCopyPad(src_i8, input_i8_gm_[InputOffset(outer_id, 0, 0)], row_copy,
                   pad);
@@ -1368,10 +1388,7 @@ class IndexAddKernel {
         const uint32_t partial_base = axis_id * 8 * kCase4GatherbWidth;
         for (uint32_t w = 0; w < 7; ++w) {
           int32_t sum = static_cast<int32_t>(src_i8.GetValue(dst_base + w));
-          for (uint32_t r = 0; r < 8; ++r) {
-            sum += static_cast<int32_t>(
-                partial.GetValue(partial_base + r * kCase4GatherbWidth + w));
-          }
+          sum += static_cast<int32_t>(partial.GetValue(partial_base + w));
           src_i8.SetValue(dst_base + w, static_cast<int8_t>(sum));
         }
       }
@@ -1387,11 +1404,8 @@ class IndexAddKernel {
         const uint32_t partial_base = axis_id * 8 * kCase4GatherbWidth;
         for (uint32_t w = 0; w < 7; ++w) {
           int32_t sum = static_cast<int32_t>(src_i8.GetValue(dst_base + w));
-          for (uint32_t r = 0; r < 8; ++r) {
-            sum += static_cast<int32_t>(
-                partial.GetValue(partial_base + r * kCase4GatherbWidth + 8 +
-                                 w));
-          }
+          sum +=
+              static_cast<int32_t>(partial.GetValue(partial_base + 8 + w));
           src_i8.SetValue(dst_base + w, static_cast<int8_t>(sum));
         }
       }

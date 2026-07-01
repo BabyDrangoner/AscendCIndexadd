@@ -625,3 +625,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `434ced1878c413efa2dd1146b45259ceb072584767583ee24bb837d0108c42ab`
 - Verification: Docker build passed; top-level host/kernel source matches the zip.
 - Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
+
+## v216 gatherb-finalreduce-bd48
+
+- Change: keep v215's exact int8 Case4 two-outer Gatherb path and block cap 48, then vector-reduce each axis partial from 8 rows to 1 row before final input add/writeback.
+- Rationale: PyTorch CUDA `index_add` parallelizes over source/index work and reduces duplicate destinations instead of scanning target rows. This variant keeps that direction and removes the remaining 8-row scalar accumulation in the Case4 writeback tail.
+- Package: `IndexAdd_v216_gatherb_finalreduce_bd48.zip`
+- SHA256: `32e333a99e1d117a078ee14ce3ee862fe01a588c3eec585b3245faedb7cdd73a`
+- Verification: Docker build passed; top-level host/kernel source matches the zip.
+- Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
