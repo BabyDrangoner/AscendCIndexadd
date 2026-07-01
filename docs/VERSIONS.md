@@ -444,4 +444,5 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - Package: `IndexAdd_v189_pack4_paircode.zip`
 - SHA256: `13423e2aad851699d45320c981b0abe61c575a2e32191055e01dd45f747cdc33`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
-- Submit: not submitted.
+- Submit: 2026-07-01 19:47:07 CST, workId `IndexAdd_v189_pack4_paircode.zip`.
+- Monitor: pending as of 2026-07-01 19:47:18 CST; workInfo shows v189, while the ranking row still points to the previous `2026/07/01 18:36:49` result.
