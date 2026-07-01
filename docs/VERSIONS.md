@@ -500,3 +500,12 @@ Conclusion: full pass and better than the 12:23 v121 recovery run by 14.088us, b
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-07-01 13:25:43 CST, workId `IndexAdd_v147_case4_pack8_packed.zip`.
 - Official result: pending; as of 13:25 CST the ranking row still pointed to v145's `2026/07/01 13:01:52` result.
+
+## v148 case4-pack16-packed
+
+- Change: add a more aggressive exact int8 Case4 Pack16 path for `outer % 16 == 0`. It processes the 1024 index dimension as two 512-row tiles; four 16KB UB buffers are split into four 4KB slots each, so all 16 source tiles fit with slack for unaligned packed loads.
+- Rationale: if the profile shape is `outer=8192`, Pack16 cuts Pack8's source-order switch/index loop count in half again while preserving conflict-free per-outer accumulation. The main risk is much higher scalar register pressure from 16 x 6 packed accumulators.
+- Package: `IndexAdd_v148_case4_pack16_packed.zip`
+- SHA256: `9ec803acc7f6a327bbb32f028f9240cee033abd7a7be9949d46c157a981dfe0d`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: not submitted yet; wait for v147 Pack8's official result before overwriting the platform row.
