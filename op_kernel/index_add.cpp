@@ -175,12 +175,12 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
-    if (UseCase4IndexMajorAtomicSyncPath()) {
-      ProcessCase4IndexMajorAtomicSyncInt8();
-      return;
-    }
     if (UseCase4MaskReduceI8Path()) {
       ProcessCase4MaskReduceI8();
+      return;
+    }
+    if (UseCase4IndexMajorAtomicSyncPath()) {
+      ProcessCase4IndexMajorAtomicSyncInt8();
       return;
     }
     if (UseCase4Int8StridedAtomicBatchPath()) {
@@ -327,7 +327,7 @@ class IndexAddKernel {
   __aicore__ inline bool UseCase4MaskReduceI8Path() const {
     return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
            ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
-           index_len_ == 1024 && outer_ == 8192;
+           index_len_ == 1024 && outer_ == 120;
   }
 
   __aicore__ inline bool UseCase4Int8Outer1Path() const {

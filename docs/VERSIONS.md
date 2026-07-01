@@ -534,3 +534,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `9b7e5097fce4ce4e6d05ea68f48a32dd7cfdc2c8e4317269145162accc95770a`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: submitted at `2026-07-01 20:49:26 CST` as `IndexAdd_v198_pytorch_largeindex_sync.zip`; first monitor still shows the old `2026/07/01 19:47:05` ranked result, so the v198 evaluation is pending.
+
+## v200 maskreduce-outer120
+
+- Change: retarget the existing Case4 mask-reduce prototype to the actual hidden Case4 shape by changing the guard from `outer=8192` to `outer=120`, and run it before the PyTorch large-index atomic path.
+- Rationale: v194 never measured mask-reduce because it missed the real Case4 `outer` value. This candidate finally tests the non-atomic onehot-mask plus vector tree-reduction algorithm against the slow Pack4 scalar band.
+- Package: `IndexAdd_v200_maskreduce_outer120.zip`
+- SHA256: `659cc38f1bae48213ba2b8d93bc8c7a35eb009688774e86da1803055a3d257f2`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted.
