@@ -607,3 +607,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `e42ecff512dbb91643d92bcd6d116835c05121767c8d7a0e90318aa2eedc9cb7`
 - Verification: Docker build passed; top-level host/kernel source matches the zip.
 - Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
+
+## v214 gatherb-outer2-vecpartial-bd30
+
+- Change: keep v211's corrected two-outer `Gatherb` path and `blockDim=30`, but replace the scalar tail accumulation into `partial` with one int16 vector `Add` over the 8x16 reduced tail for each axis.
+- Rationale: v211 still performs scalar `GetValue/SetValue` for 8 tail rows and both packed lane groups after every axis/tile reduction. This candidate removes that hot scalar block, leaving scalar code mostly in offset construction and final int8 writeback.
+- Package: `IndexAdd_v214_gatherb_outer2_vecpartial_bd30.zip`
+- SHA256: `280a1cbf781f1666f864249956bd72822040d7b570f6704f5965b2e7e7858957`
+- Verification: Docker build passed; top-level host/kernel source matches the zip.
+- Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).

@@ -1268,52 +1268,9 @@ class IndexAddKernel {
     }
 
     const uint32_t partial_base = axis_id * 8 * kCase4GatherbWidth;
-    for (uint32_t r = 0; r < 8; ++r) {
-      const uint32_t row_off = r * kCase4GatherbWidth;
-      const uint32_t part_off = partial_base + row_off;
-      partial.SetValue(part_off + 0,
-                       partial.GetValue(part_off + 0) +
-                           gathered_i16.GetValue(row_off + 0));
-      partial.SetValue(part_off + 1,
-                       partial.GetValue(part_off + 1) +
-                           gathered_i16.GetValue(row_off + 1));
-      partial.SetValue(part_off + 2,
-                       partial.GetValue(part_off + 2) +
-                           gathered_i16.GetValue(row_off + 2));
-      partial.SetValue(part_off + 3,
-                       partial.GetValue(part_off + 3) +
-                           gathered_i16.GetValue(row_off + 3));
-      partial.SetValue(part_off + 4,
-                       partial.GetValue(part_off + 4) +
-                           gathered_i16.GetValue(row_off + 4));
-      partial.SetValue(part_off + 5,
-                       partial.GetValue(part_off + 5) +
-                           gathered_i16.GetValue(row_off + 5));
-      partial.SetValue(part_off + 6,
-                       partial.GetValue(part_off + 6) +
-                           gathered_i16.GetValue(row_off + 6));
-      partial.SetValue(part_off + 8,
-                       partial.GetValue(part_off + 8) +
-                           gathered_i16.GetValue(row_off + 8));
-      partial.SetValue(part_off + 9,
-                       partial.GetValue(part_off + 9) +
-                           gathered_i16.GetValue(row_off + 9));
-      partial.SetValue(part_off + 10,
-                       partial.GetValue(part_off + 10) +
-                           gathered_i16.GetValue(row_off + 10));
-      partial.SetValue(part_off + 11,
-                       partial.GetValue(part_off + 11) +
-                           gathered_i16.GetValue(row_off + 11));
-      partial.SetValue(part_off + 12,
-                       partial.GetValue(part_off + 12) +
-                           gathered_i16.GetValue(row_off + 12));
-      partial.SetValue(part_off + 13,
-                       partial.GetValue(part_off + 13) +
-                           gathered_i16.GetValue(row_off + 13));
-      partial.SetValue(part_off + 14,
-                       partial.GetValue(part_off + 14) +
-                           gathered_i16.GetValue(row_off + 14));
-    }
+    Add(partial[partial_base], partial[partial_base], gathered_i16,
+        static_cast<int32_t>(8 * kCase4GatherbWidth));
+    PipeBarrier<PIPE_V>();
   }
 
   __aicore__ inline void ProcessCase4GatherbReduceI8() {
