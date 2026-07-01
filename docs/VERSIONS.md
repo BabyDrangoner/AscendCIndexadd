@@ -236,7 +236,9 @@ Conclusion: invalid candidate. Always registering the KFC object did not fix the
 - Package: `IndexAdd_v132_kfc_cap24_all.zip`
 - SHA256: `c2db5a882fccd77a6b16dedaf7f9664439654f2176b57d4264a12872dd2403aa`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
-- Submit: not submitted yet; official submit needs a refreshed HiAscend cookie.
+- Submit: 2026-07-01 10:33:50 CST, workId `IndexAdd_v132_kfc_cap24_all.zip`.
+- Monitor: pending as of 2026-07-01 10:34:03 CST; ranking row still points to the older 2026-06-30 21:10:34 submission.
+- Pipeline note: HiAscend changed the OBS upload flow used by the submit page. `tools/submit_hiascend.mjs` now posts multipart form data to `/devCenter/contested/enrollment/uploadWorkToObs` and submits with `workId` equal to the zip filename, matching the current frontend.
 
 ## v133 kfc-cap24-all-m64
 

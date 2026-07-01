@@ -246,6 +246,45 @@ async function uploadByObs(tempPass, zipPath) {
   return { workId: requestId, key };
 }
 
+async function uploadWorkToObs(client, zipPath, { stageId, topic, privacyPolicy = 1 }, retry406 = true) {
+  const bytes = fs.readFileSync(zipPath);
+  const name = path.basename(zipPath);
+  const form = new FormData();
+  form.append("stageId", stageId);
+  form.append("topic", topic || "");
+  form.append("privacyPolicy", String(privacyPolicy));
+  form.append("file", new Blob([bytes]), name);
+
+  const url = `${API_BASE}/devCenter/contested/enrollment/uploadWorkToObs`;
+  const headers = {
+    accept: "application/json, text/plain, */*",
+    locale: "zh-cn",
+    origin: ORIGIN,
+    referer: client.referer,
+  };
+  const cookie = cookieHeader(client.cookieJar);
+  if (cookie) headers.cookie = cookie;
+  if (client.csrfToken) headers["x-csrf-token"] = client.csrfToken;
+
+  const res = await fetch(url, { method: "POST", headers, body: form });
+  storeSetCookie(client.cookieJar, res.headers);
+  const nextToken = res.headers.get("next-token");
+  if (nextToken) client.csrfToken = nextToken;
+
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { success: false, code: res.status, msg: text.slice(0, 200) };
+  }
+  if (retry406 && Number(data?.code) === 406 && client.csrfToken) {
+    return uploadWorkToObs(client, zipPath, { stageId, topic, privacyPolicy }, false);
+  }
+  ensureOk(data, "uploadWorkToObs");
+  return { workId: name };
+}
+
 async function uploadByCommons(client, zipPath) {
   const bytes = fs.readFileSync(zipPath);
   const name = path.basename(zipPath);
@@ -316,12 +355,11 @@ async function main() {
   const stat = fs.statSync(args.zip);
   let upload;
   if (submitDetail.obs) {
-    const tempPass = ensureOk(await client.post("/devCenter/contested/enrollment/getTemporaryPass", {
+    upload = await uploadWorkToObs(client, args.zip, {
       stageId,
       topic,
       privacyPolicy: 1,
-    }), "get temporary OBS credentials");
-    upload = await uploadByObs(tempPass, args.zip);
+    });
   } else {
     upload = await uploadByCommons(client, args.zip);
   }
