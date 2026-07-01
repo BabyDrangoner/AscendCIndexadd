@@ -446,4 +446,5 @@ Conclusion: recovery submit succeeded and restored the official row to the stabl
 - Package: `IndexAdd_v144_case4_pack3_packed.zip`
 - SHA256: `46d8c419620d9903badadce3ca1cc62d477f1ca9bd22617609d935b10d801efb`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
-- Submit: pending.
+- Submit: 2026-07-01 12:44:54 CST, workId `IndexAdd_v144_case4_pack3_packed.zip`.
+- Monitor: pending as of 2026-07-01 12:45:06 CST; ranking row still points to v121's 2026-07-01 12:23:43 result.
