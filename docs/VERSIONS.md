@@ -552,3 +552,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `1fbe395d6e21bfe19ff64e09579338c69c08121b91fc31e55adcbdd70324699d`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: submitted at `2026-07-01 21:18:18 CST` as `IndexAdd_v203_gatherreduce_outer120.zip`; first monitor still shows the old `2026/07/01 19:47:05` ranked result, so the v203 evaluation is pending.
+
+## v205 gatherreduce-cached-index
+
+- Change: keep v203's exact Case4 GatherReduce kernel, but cache the 1024 int32 indices into UB once with `RawCopyIndexTile` before building compact gather-offset lists. Offset construction then reads the UB copy instead of calling `index32_gm_.GetValue` in two scalar passes per tile.
+- Rationale: v203 changes the per-outer algorithm, but each core still rebuilds offsets with repeated scalar GM reads. This candidate tests whether replacing those reads with a single 4KB DMA improves startup/setup cost without changing the GatherReduce math.
+- Package: `IndexAdd_v205_gatherreduce_cached_index.zip`
+- SHA256: `517d45ec7511e16a34abd2c87055f40e7998d015c469914fe01465978fcab4d6`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted.

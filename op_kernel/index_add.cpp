@@ -1176,11 +1176,11 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void BuildCase4GatherOffsets(
-      LocalTensor<uint32_t>& offsets, const uint32_t tile,
-      const uint32_t off_base, uint32_t& c0, uint32_t& c1, uint32_t& c2,
-      uint32_t& c3, uint32_t& c4, uint32_t& c5, uint32_t& s0,
-      uint32_t& s1, uint32_t& s2, uint32_t& s3, uint32_t& s4,
-      uint32_t& s5) {
+      LocalTensor<uint32_t>& offsets, LocalTensor<int32_t>& idx_values,
+      const uint32_t tile, const uint32_t off_base, uint32_t& c0,
+      uint32_t& c1, uint32_t& c2, uint32_t& c3, uint32_t& c4,
+      uint32_t& c5, uint32_t& s0, uint32_t& s1, uint32_t& s2,
+      uint32_t& s3, uint32_t& s4, uint32_t& s5) {
     c0 = 0;
     c1 = 0;
     c2 = 0;
@@ -1189,7 +1189,7 @@ class IndexAddKernel {
     c5 = 0;
     const uint32_t base = tile * kCase4MaskReduceTile;
     for (uint32_t i = 0; i < kCase4MaskReduceTile; ++i) {
-      switch (static_cast<uint32_t>(index32_gm_.GetValue(base + i))) {
+      switch (static_cast<uint32_t>(idx_values.GetValue(base + i))) {
         case 0: ++c0; break;
         case 1: ++c1; break;
         case 2: ++c2; break;
@@ -1214,7 +1214,7 @@ class IndexAddKernel {
     uint32_t p5 = s5;
 
     for (uint32_t i = 0; i < kCase4MaskReduceTile; ++i) {
-      switch (static_cast<uint32_t>(index32_gm_.GetValue(base + i))) {
+      switch (static_cast<uint32_t>(idx_values.GetValue(base + i))) {
         case 0:
           StoreCase4GatherRowOffsets(offsets, off_base, p0, i);
           p0 += kCase4MaskReduceWidth;
@@ -1306,6 +1306,7 @@ class IndexAddKernel {
   __aicore__ inline void ProcessCase4GatherReduceI8() {
     constexpr uint32_t kPartialElems = 6 * 8 * kCase4MaskReduceWidth;
     LocalTensor<uint32_t> offsets = index32_buf_.Get<uint32_t>();
+    LocalTensor<int32_t> idx_values = src_buf_.Get<int32_t>();
     LocalTensor<int8_t> src_i8 = src_buf_.Get<int8_t>();
     LocalTensor<half> src_h = src_cast_buf_.Get<half>();
     LocalTensor<half> gathered_h = out_buf_.Get<half>();
@@ -1320,12 +1321,13 @@ class IndexAddKernel {
     uint32_t t0_s0, t0_s1, t0_s2, t0_s3, t0_s4, t0_s5;
     uint32_t t1_c0, t1_c1, t1_c2, t1_c3, t1_c4, t1_c5;
     uint32_t t1_s0, t1_s1, t1_s2, t1_s3, t1_s4, t1_s5;
-    BuildCase4GatherOffsets(offsets, 0, 0, t0_c0, t0_c1, t0_c2, t0_c3,
-                            t0_c4, t0_c5, t0_s0, t0_s1, t0_s2, t0_s3,
-                            t0_s4, t0_s5);
-    BuildCase4GatherOffsets(offsets, 1, kCase4MaskReduceElems, t1_c0, t1_c1,
-                            t1_c2, t1_c3, t1_c4, t1_c5, t1_s0, t1_s1,
-                            t1_s2, t1_s3, t1_s4, t1_s5);
+    RawCopyIndexTile(idx_values, 0, 1024);
+    BuildCase4GatherOffsets(offsets, idx_values, 0, 0, t0_c0, t0_c1, t0_c2,
+                            t0_c3, t0_c4, t0_c5, t0_s0, t0_s1, t0_s2,
+                            t0_s3, t0_s4, t0_s5);
+    BuildCase4GatherOffsets(offsets, idx_values, 1, kCase4MaskReduceElems,
+                            t1_c0, t1_c1, t1_c2, t1_c3, t1_c4, t1_c5,
+                            t1_s0, t1_s1, t1_s2, t1_s3, t1_s4, t1_s5);
 
     const uint32_t core_num = GetBlockNum();
     const uint32_t cid = GetBlockIdx();
