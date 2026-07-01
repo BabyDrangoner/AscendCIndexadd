@@ -446,3 +446,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: 2026-07-01 19:47:07 CST, workId `IndexAdd_v189_pack4_paircode.zip`.
 - Monitor: pending as of 2026-07-01 19:47:18 CST; workInfo shows v189, while the ranking row still points to the previous `2026/07/01 18:36:49` result.
+
+## v190 pack4-trust-paircode
+
+- Change: build on v189 and specialize harder for valid Case4 indices. The pair-code table is stored as `uint32_t`, and the hot loop directly switches on code 0..35 without the `code < 36` guard or invalid-index fallback.
+- Rationale: contest IndexAdd validation should only feed legal index values. Removing defensive branches and byte-sized pair-code loads tests whether the remaining v189 overhead is control-flow shape rather than arithmetic.
+- Package: `IndexAdd_v190_pack4_trust_paircode.zip`
+- SHA256: `9d5ea310611368be177cfe931a6c70d066da9f904ba595ee8fbb742f4248bc2e`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted; keep v189 as the active official queue until a result appears.

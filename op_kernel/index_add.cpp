@@ -1397,11 +1397,11 @@ class IndexAddKernel {
     const uint32_t src_tile_cap = kDataBytes / 7;
     const uint32_t tile_cap = MinU32(IndexTileCap32(), src_tile_cap);
     const bool cached_index = index_len_ <= tile_cap;
-    LocalTensor<uint8_t> pair_code =
-        index32_buf_.Get<uint8_t>()[cached_index
-                                        ? AlignUp32(index_len_ *
-                                                    sizeof(int32_t))
-                                        : 0];
+    LocalTensor<uint32_t> pair_code =
+        index32_buf_.Get<uint32_t>()[(cached_index
+                                          ? AlignUp32(index_len_ *
+                                                      sizeof(int32_t))
+                                          : 0) >> 2];
     const uint32_t groups = outer_ >> 2;
     const uint32_t core_num = GetBlockNum();
     const uint32_t cid = GetBlockIdx();
@@ -1410,11 +1410,7 @@ class IndexAddKernel {
       for (uint32_t p = 0; p < (index_len_ >> 1); ++p) {
         const uint32_t r0 = static_cast<uint32_t>(idx.GetValue(p << 1));
         const uint32_t r1 = static_cast<uint32_t>(idx.GetValue((p << 1) + 1));
-        uint8_t code = 255;
-        if (r0 < 6 && r1 < 6) {
-          code = static_cast<uint8_t>(r0 * 6 + r1);
-        }
-        pair_code.SetValue(p, code);
+        pair_code.SetValue(p, r0 * 6 + r1);
       }
     }
 
@@ -1496,16 +1492,11 @@ class IndexAddKernel {
           const uint64_t vb1 = LoadPacked7(src1u, src_off1);
           const uint64_t vc1 = LoadPacked7(src2u, src_off1);
           const uint64_t vd1 = LoadPacked7(src3u, src_off1);
-          uint32_t code = 255;
-          if (cached_index) {
-            code = static_cast<uint32_t>(pair_code.GetValue((base + i) >> 1));
-          } else {
-            const uint32_t r0 = static_cast<uint32_t>(idx.GetValue(i));
-            const uint32_t r1 = static_cast<uint32_t>(idx.GetValue(i + 1));
-            if (r0 < 6 && r1 < 6) {
-              code = r0 * 6 + r1;
-            }
-          }
+          const uint32_t code =
+              cached_index
+                  ? pair_code.GetValue((base + i) >> 1)
+                  : static_cast<uint32_t>(idx.GetValue(i)) * 6 +
+                        static_cast<uint32_t>(idx.GetValue(i + 1));
 #define ADD_I8P4_PACK_SRC(P, R, S) \
           do { \
             P##R = AddPackedI8x7(P##R, v##P##S); \
@@ -1522,75 +1513,44 @@ class IndexAddKernel {
             ADD_I8P4_ROW4_SRC(R0, 0); \
             ADD_I8P4_ROW4_SRC(R1, 1); \
           } while (0)
-          if (code < 36) {
-            switch (code) {
-              case 0: ADD_I8P4_PAIR(0, 0); break;
-              case 1: ADD_I8P4_PAIR(0, 1); break;
-              case 2: ADD_I8P4_PAIR(0, 2); break;
-              case 3: ADD_I8P4_PAIR(0, 3); break;
-              case 4: ADD_I8P4_PAIR(0, 4); break;
-              case 5: ADD_I8P4_PAIR(0, 5); break;
-              case 6: ADD_I8P4_PAIR(1, 0); break;
-              case 7: ADD_I8P4_PAIR(1, 1); break;
-              case 8: ADD_I8P4_PAIR(1, 2); break;
-              case 9: ADD_I8P4_PAIR(1, 3); break;
-              case 10: ADD_I8P4_PAIR(1, 4); break;
-              case 11: ADD_I8P4_PAIR(1, 5); break;
-              case 12: ADD_I8P4_PAIR(2, 0); break;
-              case 13: ADD_I8P4_PAIR(2, 1); break;
-              case 14: ADD_I8P4_PAIR(2, 2); break;
-              case 15: ADD_I8P4_PAIR(2, 3); break;
-              case 16: ADD_I8P4_PAIR(2, 4); break;
-              case 17: ADD_I8P4_PAIR(2, 5); break;
-              case 18: ADD_I8P4_PAIR(3, 0); break;
-              case 19: ADD_I8P4_PAIR(3, 1); break;
-              case 20: ADD_I8P4_PAIR(3, 2); break;
-              case 21: ADD_I8P4_PAIR(3, 3); break;
-              case 22: ADD_I8P4_PAIR(3, 4); break;
-              case 23: ADD_I8P4_PAIR(3, 5); break;
-              case 24: ADD_I8P4_PAIR(4, 0); break;
-              case 25: ADD_I8P4_PAIR(4, 1); break;
-              case 26: ADD_I8P4_PAIR(4, 2); break;
-              case 27: ADD_I8P4_PAIR(4, 3); break;
-              case 28: ADD_I8P4_PAIR(4, 4); break;
-              case 29: ADD_I8P4_PAIR(4, 5); break;
-              case 30: ADD_I8P4_PAIR(5, 0); break;
-              case 31: ADD_I8P4_PAIR(5, 1); break;
-              case 32: ADD_I8P4_PAIR(5, 2); break;
-              case 33: ADD_I8P4_PAIR(5, 3); break;
-              case 34: ADD_I8P4_PAIR(5, 4); break;
-              case 35: ADD_I8P4_PAIR(5, 5); break;
-              default: break;
-            }
-          } else {
-            const uint32_t r0 = static_cast<uint32_t>(
-                idx.GetValue(cached_index ? base + i : i));
-            const uint32_t r1 = static_cast<uint32_t>(
-                idx.GetValue(cached_index ? base + i + 1 : i + 1));
-            {
-              const uint32_t src_off = src_off0;
-              switch (r0) {
-                case 0: ADD_I8P4_ROW4(0); break;
-                case 1: ADD_I8P4_ROW4(1); break;
-                case 2: ADD_I8P4_ROW4(2); break;
-                case 3: ADD_I8P4_ROW4(3); break;
-                case 4: ADD_I8P4_ROW4(4); break;
-                case 5: ADD_I8P4_ROW4(5); break;
-                default: break;
-              }
-            }
-            {
-              const uint32_t src_off = src_off1;
-              switch (r1) {
-                case 0: ADD_I8P4_ROW4(0); break;
-                case 1: ADD_I8P4_ROW4(1); break;
-                case 2: ADD_I8P4_ROW4(2); break;
-                case 3: ADD_I8P4_ROW4(3); break;
-                case 4: ADD_I8P4_ROW4(4); break;
-                case 5: ADD_I8P4_ROW4(5); break;
-                default: break;
-              }
-            }
+          switch (code) {
+            case 0: ADD_I8P4_PAIR(0, 0); break;
+            case 1: ADD_I8P4_PAIR(0, 1); break;
+            case 2: ADD_I8P4_PAIR(0, 2); break;
+            case 3: ADD_I8P4_PAIR(0, 3); break;
+            case 4: ADD_I8P4_PAIR(0, 4); break;
+            case 5: ADD_I8P4_PAIR(0, 5); break;
+            case 6: ADD_I8P4_PAIR(1, 0); break;
+            case 7: ADD_I8P4_PAIR(1, 1); break;
+            case 8: ADD_I8P4_PAIR(1, 2); break;
+            case 9: ADD_I8P4_PAIR(1, 3); break;
+            case 10: ADD_I8P4_PAIR(1, 4); break;
+            case 11: ADD_I8P4_PAIR(1, 5); break;
+            case 12: ADD_I8P4_PAIR(2, 0); break;
+            case 13: ADD_I8P4_PAIR(2, 1); break;
+            case 14: ADD_I8P4_PAIR(2, 2); break;
+            case 15: ADD_I8P4_PAIR(2, 3); break;
+            case 16: ADD_I8P4_PAIR(2, 4); break;
+            case 17: ADD_I8P4_PAIR(2, 5); break;
+            case 18: ADD_I8P4_PAIR(3, 0); break;
+            case 19: ADD_I8P4_PAIR(3, 1); break;
+            case 20: ADD_I8P4_PAIR(3, 2); break;
+            case 21: ADD_I8P4_PAIR(3, 3); break;
+            case 22: ADD_I8P4_PAIR(3, 4); break;
+            case 23: ADD_I8P4_PAIR(3, 5); break;
+            case 24: ADD_I8P4_PAIR(4, 0); break;
+            case 25: ADD_I8P4_PAIR(4, 1); break;
+            case 26: ADD_I8P4_PAIR(4, 2); break;
+            case 27: ADD_I8P4_PAIR(4, 3); break;
+            case 28: ADD_I8P4_PAIR(4, 4); break;
+            case 29: ADD_I8P4_PAIR(4, 5); break;
+            case 30: ADD_I8P4_PAIR(5, 0); break;
+            case 31: ADD_I8P4_PAIR(5, 1); break;
+            case 32: ADD_I8P4_PAIR(5, 2); break;
+            case 33: ADD_I8P4_PAIR(5, 3); break;
+            case 34: ADD_I8P4_PAIR(5, 4); break;
+            case 35: ADD_I8P4_PAIR(5, 5); break;
+            default: break;
           }
 #undef ADD_I8P4_PAIR
 #undef ADD_I8P4_ROW4_SRC
