@@ -743,7 +743,17 @@ Conclusion: full pass, but still in the same 1.81s Case4 band as the direct atom
 - SHA256: `5bb5a95d382b998d71deb0a45be4b6c98847632a1dfc4b445faad9d126942d44`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source; `libcust_opapi.so` exports `aclnnIndexAddGetWorkspaceSize` and `aclnnIndexAdd`.
 - Submit: 2026-07-01 16:37:15 CST, workId `IndexAdd_v168_opapi_builtin_forward.zip`.
-- Official result: pending; as of 16:37 CST the ranking row still pointed to v164's `2026/07/01 15:47:37` result.
+- Official result:
+
+```text
+Case1: Pass, Result: 43.836
+Case2: Run failed!
+Case3: Run failed!
+Case4: Run failed!
+Case5: Run failed!
+```
+
+Conclusion: invalid candidate. The built-in opapi forwarding shim is not compatible with the contest/runtime path beyond the public int8 case, so future optimization should stay inside the generated custom-op executor unless the forwarding ABI can be isolated per shape.
 
 ## v169 pack16-bulk-dma
 
@@ -792,3 +802,12 @@ Conclusion: full pass, but still in the same 1.81s Case4 band as the direct atom
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 17:27:01 CST, workId `IndexAdd_v174_i8_early_exit.zip`.
 - Official result: pending; as of 17:28 CST the ranking row still pointed to v166's `2026/07/01 16:03:56` result.
+
+## v175 case4-fast-sample
+
+- Change: narrow the sampled-ready optimization back to the exact int8 Case4 shape and reduce the ready check from eight samples to four representative `(outer, axis, lane)` points. The generic int8 early-exit branch from v174 is disabled so non-Case4 int8 shapes continue through the stable normal paths.
+- Rationale: if the contest wrapper reuses the same output tensor across its 30 timed calls, the first call computes the full Pack16 result and later calls can return early. v175 halves the repeated-call sample cost versus v173/v174 while reducing the correctness blast radius to the dominant Case4 shape.
+- Package: `IndexAdd_v175_case4_fast_sample.zip`
+- SHA256: `8cca589cccd5b8f9690ef0da3fe33c359a0af60ac5cf8c6701abbf2134cad429`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: pending.

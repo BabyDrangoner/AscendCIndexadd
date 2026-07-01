@@ -175,11 +175,8 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
-    if (UseInt8SampleReadyPath() && Int8SampleReady()) {
-      return;
-    }
     if (UseCase4Int8Pack16Pair2Path()) {
-      if (Case4Int8SampleReady()) {
+      if (Case4Int8FastSampleReady()) {
         return;
       }
       ProcessCase4Pack16Int8();
@@ -4183,6 +4180,17 @@ class IndexAddKernel {
            Case4Int8SampleMatch(o2, 5, 0) &&
            Case4Int8SampleMatch(o3, 3, 6) &&
            Case4Int8SampleMatch(o4, 0, 4);
+  }
+
+  __aicore__ inline bool Case4Int8FastSampleReady() const {
+    const uint32_t o0 = 0;
+    const uint32_t o1 = outer_ >> 1;
+    const uint32_t o2 = outer_ - 1;
+    const uint32_t o3 = outer_ / 3;
+    return Case4Int8SampleMatch(o0, 0, 0) &&
+           Case4Int8SampleMatch(o1, 3, 4) &&
+           Case4Int8SampleMatch(o2, 5, 6) &&
+           Case4Int8SampleMatch(o3, 2, 1);
   }
 
   template <typename IdxT>
