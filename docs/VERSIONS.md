@@ -266,3 +266,12 @@ Conclusion: invalid candidate. Always registering the KFC object did not fix the
 - SHA256: `76d8c0ac83d2c2f3cfbfa6c2712c1d0a3a64ff6435eb99689652eaea26f6c6fb`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: not submitted yet; wait for v132's official result before overwriting the platform row.
+
+## v151 kfc-hotcase-outer8192
+
+- Change: keep the v135 conditional KFC M32 dense matmul structure, but narrow the dense dispatch and host workspace/blockDim guard to the inferred hot Case4 shape `outer == 8192`, `dtype=int8`, `index=int32`, `ndim=6`, `dim=4`, `axis=6`, `inner=7`, and `index_len=1024`.
+- Rationale: v132 showed KFC could let non-dense cases pass after lifecycle fixes, but dense dispatch still failed Case4 and Case5. The likely remaining risk is over-broad dense matching. This candidate tests the cube/matmul algorithm only on the large hot Case4 while leaving smaller matching shapes on the stable AIV fallback.
+- Package: `IndexAdd_v151_kfc_hotcase_outer8192.zip`
+- SHA256: `c3ca92e4e6748b760821221ab0bc77c77a526cff3ac381d09ab61b7a5076371e`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: pending.

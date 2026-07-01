@@ -375,7 +375,7 @@ class IndexAddKernel {
     return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
            ndim_ == 6 && dim_ == 4 && axis_ == kCase4DenseAxis &&
            inner_ == kCase4DenseInner && index_len_ == 1024 &&
-           outer_ > 0;
+           outer_ == 8192;
   }
 
   __aicore__ inline TPipe* Pipe() { return &pipe_; }

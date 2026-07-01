@@ -172,7 +172,7 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
       (index_dtype_size == 4 || index_dtype_size == 8) && index_len >= 512;
   const bool use_case4_i8_dense_gma =
       use_case4_outer_owned && dtype_mode == 1 && index_dtype_size == 4 &&
-      index_len == 1024;
+      index_len == 1024 && outer == 8192;
   const bool use_case4_i8_aligned_rows =
       use_case4_outer_owned && dtype_mode == 1 && index_dtype_size == 4 &&
       index_len >= 512;
