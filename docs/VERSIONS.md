@@ -852,4 +852,5 @@ Conclusion: full pass, but the two 8-block strided source DMA shape does not imp
 - Package: `IndexAdd_v179_workspace_sig.zip`
 - SHA256: `67b240075acc8f56a7bc224a8f9bcfe0efb76f2b29a4825e35be55823b157176`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
-- Submit: pending.
+- Submit: 2026-07-01 18:09:07 CST, workId `IndexAdd_v179_workspace_sig.zip`.
+- Official result: pending.
