@@ -634,3 +634,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `32e333a99e1d117a078ee14ce3ee862fe01a588c3eec585b3245faedb7cdd73a`
 - Verification: Docker build passed; top-level host/kernel source matches the zip.
 - Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
+
+## v217 gatherb-finalreduce-bd30
+
+- Change: keep v216's vectorized final partial reduction, but use the v214/v211 exact int8 Case4 block cap 30.
+- Rationale: compare the new algorithmic scalar reduction against v216 while reducing duplicated per-block offset construction.
+- Package: `IndexAdd_v217_gatherb_finalreduce_bd30.zip`
+- SHA256: `2ef14190cb651f3a44262eb44e66754c1b43413b96c7efff20a75d1c4dec4c1d`
+- Verification: Docker build passed; top-level host/kernel source matches the zip.
+- Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
