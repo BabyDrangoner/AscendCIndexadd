@@ -831,4 +831,5 @@ Conclusion: full pass but still in the 1.81s Case4 band. Coarsening Pack16 input
 - Package: `IndexAdd_v176_case4_two_sample.zip`
 - SHA256: `e57b07932a248fe3cd12cfbb45421a2099a7013bec017d8bae44d094f073ebdf`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
-- Submit: pending.
+- Submit: 2026-07-01 17:42:55 CST, workId `IndexAdd_v176_case4_two_sample.zip`.
+- Official result: pending.
