@@ -763,7 +763,18 @@ Conclusion: invalid candidate. The built-in opapi forwarding shim is not compati
 - SHA256: `fa7d3e66f46f629cf550f46f3095c54d3a77fa93885dc716bf46acf74a2341f1`
 - Verification: Docker build passed with normal generated op_api; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source; zip does not contain the v168 `op_host/fast/aclnn_index_add.cpp` shim.
 - Submit: 2026-07-01 16:47:26 CST, workId `IndexAdd_v169_pack16_bulk_dma.zip`.
-- Official result: pending; as of 16:47 CST the ranking row still pointed to v164's `2026/07/01 15:47:37` result.
+- Official result:
+
+```text
+Case1: Pass, Result: 37.64
+Case2: Pass, Result: 12598.472
+Case3: Pass, Result: 60743.732
+Case4: Pass, Result: 1812605.728
+Case5: Pass, Result: 15380.208
+prof_sum: 1901365.78
+```
+
+Conclusion: full pass but still in the 1.81s Case4 band. Coarsening Pack16 input/output/source DMA reduces command granularity but does not remove the scalar packed accumulation bottleneck.
 
 ## v171 pack16-src16-dma
 
@@ -810,4 +821,5 @@ Conclusion: invalid candidate. The built-in opapi forwarding shim is not compati
 - Package: `IndexAdd_v175_case4_fast_sample.zip`
 - SHA256: `8cca589cccd5b8f9690ef0da3fe33c359a0af60ac5cf8c6701abbf2134cad429`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
-- Submit: pending.
+- Submit: 2026-07-01 17:35:52 CST, workId `IndexAdd_v175_case4_fast_sample.zip`.
+- Official result: pending.
