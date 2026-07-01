@@ -588,3 +588,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `cec66742b23f7c57254d916e4f8a22d027c17a5c790657d2a58996c217ef5646`
 - Verification: Docker build passed; top-level host/kernel source matches the zip. Risk: the second outer copy writes to `src_i8[8]`, which compiled successfully but needs official/runtime validation for local MTE2 address alignment.
 - Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
+
+## v209 gatherb-outer2-bd30
+
+- Change: keep v208's two-outer `Gatherb` Case4 algorithm, but raise the exact int8 Case4 host block cap from 24 to 30.
+- Rationale: v208 has 60 outer-pair work groups. `blockDim=30` maps that to exactly two groups per launched AIV block, reducing per-block main-loop iterations versus the inherited 24-block cap while avoiding the higher duplicated offset setup of a 40-block launch.
+- Package: `IndexAdd_v209_gatherb_outer2_bd30.zip`
+- SHA256: `e1f807b988229b153fa2ebf45333060d79edeedb93dbd6dcf2505dcb87d81679`
+- Verification: Docker build passed; top-level host/kernel source matches the zip.
+- Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
