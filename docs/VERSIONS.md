@@ -303,4 +303,5 @@ Case5: Run failed
 - Package: `IndexAdd_v156_kfc_b1_allreg_hotcase.zip`
 - SHA256: `1c06d802795e43fead184b7eff70ff678fdbb8a9cf6d22acf437f288970616cd`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
-- Submit: not submitted yet.
+- Submit: 2026-07-01 14:54:09 CST, workId `IndexAdd_v156_kfc_b1_allreg_hotcase.zip`.
+- Monitor: pending as of 2026-07-01 14:54 CST; ranking row still points to v151's 2026-07-01 14:23:54 `-1us` result.
