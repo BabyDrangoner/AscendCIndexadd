@@ -228,3 +228,12 @@ Conclusion: invalid candidate. Always registering the KFC object did not fix the
 - SHA256: `08408c911101b8a6e879ab38b77bef9f48cf392c6654de2c3e6ce27cef07903a`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: not submitted yet; current HiAscend cookie is expired (`401 未登录`).
+
+## v132 kfc-cap24-all
+
+- Change: keep v131's KFC/AIV-only initialization and cap `blockDim` to 24 for every runtime shape.
+- Rationale: once KFC is registered for all shapes, fallback cases can no longer use the old 32/40 block caps. KFC flat-block bookkeeping is only safe around 24 AIV blocks; exceeding that can explain why v124/v128 failed every case, not just Case4.
+- Package: `IndexAdd_v132_kfc_cap24_all.zip`
+- SHA256: `c2db5a882fccd77a6b16dedaf7f9664439654f2176b57d4264a12872dd2403aa`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: not submitted yet; official submit needs a refreshed HiAscend cookie.
