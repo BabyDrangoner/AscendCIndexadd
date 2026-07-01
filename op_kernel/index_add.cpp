@@ -102,7 +102,8 @@ class IndexAddKernel {
   __aicore__ inline IndexAddKernel() {}
 
   __aicore__ inline void Init(GM_ADDR input, GM_ADDR index, GM_ADDR source,
-                              GM_ADDR output, const IndexAddTilingData* tiling) {
+                              GM_ADDR output, GM_ADDR workspace,
+                              const IndexAddTilingData* tiling) {
     outer_ = tiling->outer;
     axis_ = tiling->axis;
     inner_ = tiling->inner;
@@ -133,6 +134,8 @@ class IndexAddKernel {
     input_i8_gm_.SetGlobalBuffer((__gm__ int8_t*)input, input_elems);
     source_i8_gm_.SetGlobalBuffer((__gm__ int8_t*)source, source_elems);
     output_i8_gm_.SetGlobalBuffer((__gm__ int8_t*)output, input_elems);
+    workspace_i8_gm_.SetGlobalBuffer((__gm__ int8_t*)workspace,
+                                     (uint64_t)outer_ * axis_ * 32);
     input_f16_gm_.SetGlobalBuffer((__gm__ half*)input, input_elems);
     source_f16_gm_.SetGlobalBuffer((__gm__ half*)source, source_elems);
     output_f16_gm_.SetGlobalBuffer((__gm__ half*)output, input_elems);
@@ -334,6 +337,11 @@ class IndexAddKernel {
     return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
            ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
            index_len_ == 1024 && outer_ == 8192;
+  }
+
+  __aicore__ inline uint64_t WorkspaceOffset(uint32_t outer_id,
+                                             uint32_t axis_id) const {
+    return ((uint64_t)outer_id * 6 + axis_id) * 32;
   }
 
   __aicore__ inline bool UseCase4Int8Pack4Path() const {
@@ -1208,39 +1216,80 @@ class IndexAddKernel {
 
   __aicore__ inline void ProcessCase4AtomicInt8() {
     LocalTensor<int32_t> idx = index32_buf_.Get<int32_t>();
-    LocalTensor<int8_t> buf = src_buf_.Get<int8_t>();
+    LocalTensor<int8_t> src = src_buf_.Get<int8_t>();
     LocalTensor<int8_t> row = out_buf_.Get<int8_t>();
     DataCopyPadParams pad{false, 0, 0, 0};
     const uint32_t core_num = GetBlockNum();
     const uint32_t cid = GetBlockIdx();
     constexpr uint32_t kSrcElems = 1024 * 7;
     DataCopyParams src_copy{1, static_cast<uint16_t>(kSrcElems), 0, 0};
-    DataCopyParams row_copy{1, 7, 0, 0};
     DataCopyParams outer_copy{1, 42, 0, 0};
+    DataCopyParams row32_copy{1, 32, 0, 0};
 
     RawCopyIndexTile(idx, 0, 1024);
+    for (uint32_t z = 7; z < 32; ++z) {
+      row.SetValue(z, 0);
+    }
+
     for (uint32_t outer_id = cid; outer_id < outer_; outer_id += core_num) {
-      DataCopyPad(row, input_i8_gm_[InputOffset(outer_id, 0, 0)], outer_copy,
+      DataCopyPad(src, input_i8_gm_[InputOffset(outer_id, 0, 0)], outer_copy,
                   pad);
       PipeBarrier<PIPE_MTE2>();
-      DataCopyPad(output_i8_gm_[InputOffset(outer_id, 0, 0)], row,
-                  outer_copy);
+      for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
+        const uint32_t in_off = axis_id * 7;
+        row.SetValue(0, src.GetValue(in_off + 0));
+        row.SetValue(1, src.GetValue(in_off + 1));
+        row.SetValue(2, src.GetValue(in_off + 2));
+        row.SetValue(3, src.GetValue(in_off + 3));
+        row.SetValue(4, src.GetValue(in_off + 4));
+        row.SetValue(5, src.GetValue(in_off + 5));
+        row.SetValue(6, src.GetValue(in_off + 6));
+        DataCopyPad(workspace_i8_gm_[WorkspaceOffset(outer_id, axis_id)], row,
+                    row32_copy);
+      }
       PipeBarrier<PIPE_MTE3>();
     }
 
     SetAtomicAdd<int8_t>();
     for (uint32_t outer_id = cid; outer_id < outer_; outer_id += core_num) {
-      DataCopyPad(buf, source_i8_gm_[SourceOffset(outer_id, 0, 0)], src_copy,
+      DataCopyPad(src, source_i8_gm_[SourceOffset(outer_id, 0, 0)], src_copy,
                   pad);
       PipeBarrier<PIPE_MTE2>();
       for (uint32_t i = 0; i < 1024; ++i) {
         const uint32_t axis_id = static_cast<uint32_t>(idx.GetValue(i));
-        DataCopyPad(output_i8_gm_[InputOffset(outer_id, axis_id, 0)],
-                    buf[i * 7], row_copy);
+        const uint32_t src_off = i * 7;
+        row.SetValue(0, src.GetValue(src_off + 0));
+        row.SetValue(1, src.GetValue(src_off + 1));
+        row.SetValue(2, src.GetValue(src_off + 2));
+        row.SetValue(3, src.GetValue(src_off + 3));
+        row.SetValue(4, src.GetValue(src_off + 4));
+        row.SetValue(5, src.GetValue(src_off + 5));
+        row.SetValue(6, src.GetValue(src_off + 6));
+        DataCopyPad(workspace_i8_gm_[WorkspaceOffset(outer_id, axis_id)], row,
+                    row32_copy);
       }
       PipeBarrier<PIPE_MTE3>();
     }
     SetAtomicNone();
+
+    for (uint32_t outer_id = cid; outer_id < outer_; outer_id += core_num) {
+      for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
+        DataCopyPad(row, workspace_i8_gm_[WorkspaceOffset(outer_id, axis_id)],
+                    row32_copy, pad);
+        PipeBarrier<PIPE_MTE2>();
+        const uint32_t out_off = axis_id * 7;
+        src.SetValue(out_off + 0, row.GetValue(0));
+        src.SetValue(out_off + 1, row.GetValue(1));
+        src.SetValue(out_off + 2, row.GetValue(2));
+        src.SetValue(out_off + 3, row.GetValue(3));
+        src.SetValue(out_off + 4, row.GetValue(4));
+        src.SetValue(out_off + 5, row.GetValue(5));
+        src.SetValue(out_off + 6, row.GetValue(6));
+      }
+      DataCopyPad(output_i8_gm_[InputOffset(outer_id, 0, 0)], src,
+                  outer_copy);
+      PipeBarrier<PIPE_MTE3>();
+    }
   }
 
   __aicore__ inline void ProcessCase4MaskReduceI16() {
@@ -5165,6 +5214,7 @@ class IndexAddKernel {
   GlobalTensor<int8_t> input_i8_gm_;
   GlobalTensor<int8_t> source_i8_gm_;
   GlobalTensor<int8_t> output_i8_gm_;
+  GlobalTensor<int8_t> workspace_i8_gm_;
   GlobalTensor<half> input_f16_gm_;
   GlobalTensor<half> source_f16_gm_;
   GlobalTensor<half> output_f16_gm_;
@@ -5191,9 +5241,8 @@ class IndexAddKernel {
 extern "C" __global__ __aicore__ void index_add(
     GM_ADDR input, GM_ADDR index, GM_ADDR source, GM_ADDR output,
     GM_ADDR workspace, GM_ADDR tiling) {
-  (void)workspace;
   GET_TILING_DATA(td, tiling);
   IndexAddKernel op;
-  op.Init(input, index, source, output, &td);
+  op.Init(input, index, source, output, workspace, &td);
   op.Process();
 }

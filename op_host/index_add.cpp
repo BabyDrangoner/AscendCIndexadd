@@ -188,6 +188,9 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
   const bool use_case4_i8_aligned_rows =
       use_case4_outer_owned && dtype_mode == 1 && index_dtype_size == 4 &&
       index_len >= 512;
+  const bool use_case4_i8_atomic_workspace =
+      use_case4_i8_outer1 && index_dtype_size == 4 && index_len == 1024 &&
+      outer == 8192;
   const bool use_case4_hbf16_aligned_rows =
       use_case4_outer_owned && (dtype_mode == 2 || dtype_mode == 5) &&
       index_len >= 512;
@@ -282,7 +285,9 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
   context->SetBlockDim(block_dim);
 
   size_t* workspace = context->GetWorkspaceSizes(1);
-  workspace[0] = 0;
+  workspace[0] = use_case4_i8_atomic_workspace
+                     ? static_cast<size_t>(outer) * axis * 32
+                     : 0;
 
   tiling.SaveToBuffer(context->GetRawTilingData()->GetData(),
                       context->GetRawTilingData()->GetCapacity());

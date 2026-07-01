@@ -639,3 +639,12 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 15:47:47 CST, workId `IndexAdd_v164_owner_atomic_once.zip`.
 - Official result: pending.
+
+## v165 workspace-atomic-i8
+
+- Change: move the exact hot Case4 int8 atomic destination from the 7-byte output rows to a 32-byte padded GM workspace row per `(outer, axis)`. Each core initializes only its owned outer rows in workspace, atomically adds 32-byte padded source rows, then compacts the first 7 bytes of each workspace row back to output.
+- Rationale: this is a safety variant for the direct atomic line. If v164 fails because 7-byte atomic `DataCopyPad` is illegal or misaligned at runtime, v165 tests the same `SetAtomicAdd<int8_t>()` path using fully aligned 32B atomic writes.
+- Package: `IndexAdd_v165_workspace_atomic_i8.zip`
+- SHA256: `1207c206a9716e2f80443836b18c51960939b5a813f1ffaf07e39f05666bb29c`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: pending.
