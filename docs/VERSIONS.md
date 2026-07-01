@@ -510,7 +510,18 @@ Conclusion: full pass but 9.604us slower than v145. The Pack5/blockDim24 schedul
 - SHA256: `bf13f69a9ad1da18de05964cc7ef899c40dfdd0ebde6cc6014596cb1a8fe0166`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-07-01 13:25:43 CST, workId `IndexAdd_v147_case4_pack8_packed.zip`.
-- Official result: pending; as of 13:25 CST the ranking row still pointed to v145's `2026/07/01 13:01:52` result.
+- Official result:
+
+```text
+Case1: Pass, Result: 42.8
+Case2: Pass, Result: 12592.688
+Case3: Pass, Result: 60760.7
+Case4: Pass, Result: 1729266.328
+Case5: Pass, Result: 15618.592
+prof_sum: 1818281.108
+```
+
+Conclusion: full pass and 52.56us faster than v146, confirming the Pack8 path hits the hidden Case4 shape. The gain is still tiny relative to the target, so larger PackN alone is not the order-level breakthrough.
 
 ## v148 case4-pack16-packed
 
