@@ -731,5 +731,5 @@ Conclusion: full pass, but no improvement over v162/v148. Moving `SetAtomicAdd<i
 - Package: `IndexAdd_v168_opapi_builtin_forward.zip`
 - SHA256: `5bb5a95d382b998d71deb0a45be4b6c98847632a1dfc4b445faad9d126942d44`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source; `libcust_opapi.so` exports `aclnnIndexAddGetWorkspaceSize` and `aclnnIndexAdd`.
-- Submit: pending.
-- Official result: pending.
+- Submit: 2026-07-01 16:37:15 CST, workId `IndexAdd_v168_opapi_builtin_forward.zip`.
+- Official result: pending; as of 16:37 CST the ranking row still pointed to v164's `2026/07/01 15:47:37` result.
