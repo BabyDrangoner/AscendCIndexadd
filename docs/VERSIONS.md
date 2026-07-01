@@ -384,4 +384,5 @@ Conclusion: full pass and recovers most of v140's regression, but is still 47.92
 - Package: `IndexAdd_v142_pack4_blockdim_groups.zip`
 - SHA256: `063311e54cefb77da8c938d4e96a1d98cd211c6801419f91cba0dc181396c16d`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
-- Submit: pending.
+- Submit: 2026-07-01 11:55:56 CST, workId `IndexAdd_v142_pack4_blockdim_groups.zip`.
+- Monitor: pending as of 2026-07-01 11:56:07 CST; ranking row still points to v141's 2026-07-01 11:44:57 result.
