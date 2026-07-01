@@ -281,7 +281,7 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
   const bool use_case4_i8_hot_sample =
       use_case4_i8_pack16_pair2 && outer == 8192;
   const uint32_t block_cap =
-      use_case4_i8_hot_sample ? 8 : (use_case4_i8_outer1 ? 40 : 32);
+      use_case4_i8_hot_sample ? 4 : (use_case4_i8_outer1 ? 40 : 32);
   uint32_t block_dim =
       work_units < block_cap ? static_cast<uint32_t>(work_units) : block_cap;
   if (block_dim == 0) block_dim = 1;

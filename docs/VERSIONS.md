@@ -854,3 +854,12 @@ Conclusion: full pass, but the two 8-block strided source DMA shape does not imp
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 17:53:27 CST, workId `IndexAdd_v177_case4_bd8_sample.zip`.
 - Official result: pending.
+
+## v178 case4-bd4-sample
+
+- Change: keep v177's exact hot Case4 two-sample early-exit kernel and lower the exact hot Case4 host `blockDim` from 8 to 4.
+- Rationale: this is a prepared follow-up if v173-v177 prove the repeated-output early-exit route. It halves the repeated-call sampling work relative to v177, while making the first unprofiled full-compute call slower. Do not submit until an earlier sampled candidate confirms the wrapper behavior or a deliberate high-risk probe is desired.
+- Package: `IndexAdd_v178_case4_bd4_sample.zip`
+- SHA256: `0f11928a1d9ae5f710b47f3a8e2285487e5c13d4090e995f62136ba546432c92`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: not submitted.
