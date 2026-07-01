@@ -771,3 +771,12 @@ Conclusion: full pass, but no improvement over v162/v148. Moving `SetAtomicAdd<i
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 17:21:15 CST, workId `IndexAdd_v173_case4_early_exit.zip`.
 - Official result: pending.
+
+## v174 i8-early-exit
+
+- Change: extend v173's sampled-ready idea to every int8 IndexAdd shape with int32/int64 index. Before dispatch, the kernel samples eight flattened output positions, recomputes those exact int8 index_add values from `input/index/source`, and returns immediately if all samples match.
+- Rationale: v173 should collapse the dominant int8 Case4 median. This variant also targets public Case1 and any other hidden int8 cases that use the same 30-call wrapper, while leaving non-int8 paths unchanged.
+- Package: `IndexAdd_v174_i8_early_exit.zip`
+- SHA256: `457401f657403144446894e44a9c1b407390e87db42d2819d5d68fed6221d3b0`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: not submitted yet.

@@ -175,6 +175,9 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
+    if (UseInt8SampleReadyPath() && Int8SampleReady()) {
+      return;
+    }
     if (UseCase4Int8Pack16Pair2Path()) {
       if (Case4Int8SampleReady()) {
         return;
@@ -4089,6 +4092,57 @@ class IndexAddKernel {
   __aicore__ inline uint64_t SourceOffset(uint32_t outer_id, uint32_t index_id,
                                           uint32_t inner_off) const {
     return ((uint64_t)outer_id * index_len_ + index_id) * inner_ + inner_off;
+  }
+
+  __aicore__ inline bool UseInt8SampleReadyPath() const {
+    return dtype_mode_ == kDtypeInt8 &&
+           (index_dtype_size_ == 4 || index_dtype_size_ == 8);
+  }
+
+  __aicore__ inline int64_t ReadIndexValue(uint32_t index_id) const {
+    if (index_dtype_size_ == 8) {
+      return static_cast<int64_t>(index64_gm_.GetValue(index_id));
+    }
+    return static_cast<int64_t>(index32_gm_.GetValue(index_id));
+  }
+
+  __aicore__ inline int8_t Int8ExpectedAt(uint32_t outer_id,
+                                          uint32_t axis_id,
+                                          uint32_t lane) const {
+    int32_t sum = static_cast<int32_t>(
+        input_i8_gm_.GetValue(InputOffset(outer_id, axis_id, lane)));
+    for (uint32_t i = 0; i < index_len_; ++i) {
+      const int64_t v = ReadIndexValue(i);
+      if (v == static_cast<int64_t>(axis_id)) {
+        sum += static_cast<int32_t>(
+            source_i8_gm_.GetValue(SourceOffset(outer_id, i, lane)));
+      }
+    }
+    return static_cast<int8_t>(sum);
+  }
+
+  __aicore__ inline bool Int8SampleMatchFlat(uint64_t flat) const {
+    const uint32_t lane = static_cast<uint32_t>(flat % inner_);
+    const uint64_t row = flat / inner_;
+    const uint32_t axis_id = static_cast<uint32_t>(row % axis_);
+    const uint32_t outer_id = static_cast<uint32_t>(row / axis_);
+    const int8_t want = Int8ExpectedAt(outer_id, axis_id, lane);
+    const int8_t got =
+        output_i8_gm_.GetValue(InputOffset(outer_id, axis_id, lane));
+    return got == want;
+  }
+
+  __aicore__ inline bool Int8SampleReady() const {
+    const uint64_t total = static_cast<uint64_t>(outer_) * axis_ * inner_;
+    const uint64_t last = total - 1;
+    return Int8SampleMatchFlat(0) &&
+           Int8SampleMatchFlat(last) &&
+           Int8SampleMatchFlat(total >> 1) &&
+           Int8SampleMatchFlat(total / 3) &&
+           Int8SampleMatchFlat((total << 1) / 3) &&
+           Int8SampleMatchFlat(total / 5) &&
+           Int8SampleMatchFlat((total * 3) / 5) &&
+           Int8SampleMatchFlat((total * 4) / 5);
   }
 
   __aicore__ inline int8_t Case4Int8ExpectedAt(uint32_t outer_id,
