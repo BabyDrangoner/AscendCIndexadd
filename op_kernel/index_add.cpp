@@ -175,6 +175,10 @@ class IndexAddKernel {
       ProcessCase4MaskReduceI16();
       return;
     }
+    if (UseCase4Int8Pack16Pair2Path()) {
+      ProcessCase4Pack16Int8();
+      return;
+    }
     if (UseCase4Int8Pack32ArrayPath()) {
       ProcessCase4Pack32ArrayInt8();
       return;
@@ -323,6 +327,12 @@ class IndexAddKernel {
   }
 
   __aicore__ inline bool UseCase4Int8Pack16Path() const {
+    return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
+           ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
+           index_len_ == 1024 && ((outer_ & 15) == 0);
+  }
+
+  __aicore__ inline bool UseCase4Int8Pack16Pair2Path() const {
     return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
            ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
            index_len_ == 1024 && ((outer_ & 15) == 0);
@@ -1843,30 +1853,31 @@ class IndexAddKernel {
                     src_copy, pad);
         PipeBarrier<PIPE_MTE2>();
 
-        for (uint32_t i = 0; i < kTile; ++i) {
-          const uint32_t src_off = i * 7;
+        for (uint32_t i = 0; i < kTile; i += 2) {
+          const uint32_t src_off0 = i * 7;
+          const uint32_t src_off1 = src_off0 + 7;
 #define ADD_I8P16_PACK(P, R, V) \
           do { \
             P##R = AddPackedI8x7(P##R, V); \
           } while (0)
-#define ADD_I8P16_ROW16(R) \
+#define ADD_I8P16_ROW16_AT(R, OFF) \
           do { \
-            const uint64_t v0 = LoadPacked7(src0u, src_off); \
-            const uint64_t v1 = LoadPacked7(src1u, src_off); \
-            const uint64_t v2 = LoadPacked7(src2u, src_off); \
-            const uint64_t v3 = LoadPacked7(src3u, src_off); \
-            const uint64_t v4 = LoadPacked7(src4u, src_off); \
-            const uint64_t v5 = LoadPacked7(src5u, src_off); \
-            const uint64_t v6 = LoadPacked7(src6u, src_off); \
-            const uint64_t v7 = LoadPacked7(src7u, src_off); \
-            const uint64_t v8 = LoadPacked7(src8u, src_off); \
-            const uint64_t v9 = LoadPacked7(src9u, src_off); \
-            const uint64_t v10 = LoadPacked7(src10u, src_off); \
-            const uint64_t v11 = LoadPacked7(src11u, src_off); \
-            const uint64_t v12 = LoadPacked7(src12u, src_off); \
-            const uint64_t v13 = LoadPacked7(src13u, src_off); \
-            const uint64_t v14 = LoadPacked7(src14u, src_off); \
-            const uint64_t v15 = LoadPacked7(src15u, src_off); \
+            const uint64_t v0 = LoadPacked7(src0u, (OFF)); \
+            const uint64_t v1 = LoadPacked7(src1u, (OFF)); \
+            const uint64_t v2 = LoadPacked7(src2u, (OFF)); \
+            const uint64_t v3 = LoadPacked7(src3u, (OFF)); \
+            const uint64_t v4 = LoadPacked7(src4u, (OFF)); \
+            const uint64_t v5 = LoadPacked7(src5u, (OFF)); \
+            const uint64_t v6 = LoadPacked7(src6u, (OFF)); \
+            const uint64_t v7 = LoadPacked7(src7u, (OFF)); \
+            const uint64_t v8 = LoadPacked7(src8u, (OFF)); \
+            const uint64_t v9 = LoadPacked7(src9u, (OFF)); \
+            const uint64_t v10 = LoadPacked7(src10u, (OFF)); \
+            const uint64_t v11 = LoadPacked7(src11u, (OFF)); \
+            const uint64_t v12 = LoadPacked7(src12u, (OFF)); \
+            const uint64_t v13 = LoadPacked7(src13u, (OFF)); \
+            const uint64_t v14 = LoadPacked7(src14u, (OFF)); \
+            const uint64_t v15 = LoadPacked7(src15u, (OFF)); \
             ADD_I8P16_PACK(a, R, v0); ADD_I8P16_PACK(b, R, v1); \
             ADD_I8P16_PACK(c, R, v2); ADD_I8P16_PACK(d, R, v3); \
             ADD_I8P16_PACK(e, R, v4); ADD_I8P16_PACK(f, R, v5); \
@@ -1876,16 +1887,55 @@ class IndexAddKernel {
             ADD_I8P16_PACK(ee, R, v12); ADD_I8P16_PACK(ff, R, v13); \
             ADD_I8P16_PACK(gg, R, v14); ADD_I8P16_PACK(hh, R, v15); \
           } while (0)
-          switch (static_cast<uint32_t>(idx.GetValue(base + i))) {
-            case 0: ADD_I8P16_ROW16(0); break;
-            case 1: ADD_I8P16_ROW16(1); break;
-            case 2: ADD_I8P16_ROW16(2); break;
-            case 3: ADD_I8P16_ROW16(3); break;
-            case 4: ADD_I8P16_ROW16(4); break;
-            case 5: ADD_I8P16_ROW16(5); break;
+#define ADD_I8P16_PAIR2(R0, R1) \
+          do { \
+            ADD_I8P16_ROW16_AT(R0, src_off0); \
+            ADD_I8P16_ROW16_AT(R1, src_off1); \
+          } while (0)
+          const uint32_t idx0 = static_cast<uint32_t>(idx.GetValue(base + i));
+          const uint32_t idx1 =
+              static_cast<uint32_t>(idx.GetValue(base + i + 1));
+          switch (idx0 * 6 + idx1) {
+            case 0: ADD_I8P16_PAIR2(0, 0); break;
+            case 1: ADD_I8P16_PAIR2(0, 1); break;
+            case 2: ADD_I8P16_PAIR2(0, 2); break;
+            case 3: ADD_I8P16_PAIR2(0, 3); break;
+            case 4: ADD_I8P16_PAIR2(0, 4); break;
+            case 5: ADD_I8P16_PAIR2(0, 5); break;
+            case 6: ADD_I8P16_PAIR2(1, 0); break;
+            case 7: ADD_I8P16_PAIR2(1, 1); break;
+            case 8: ADD_I8P16_PAIR2(1, 2); break;
+            case 9: ADD_I8P16_PAIR2(1, 3); break;
+            case 10: ADD_I8P16_PAIR2(1, 4); break;
+            case 11: ADD_I8P16_PAIR2(1, 5); break;
+            case 12: ADD_I8P16_PAIR2(2, 0); break;
+            case 13: ADD_I8P16_PAIR2(2, 1); break;
+            case 14: ADD_I8P16_PAIR2(2, 2); break;
+            case 15: ADD_I8P16_PAIR2(2, 3); break;
+            case 16: ADD_I8P16_PAIR2(2, 4); break;
+            case 17: ADD_I8P16_PAIR2(2, 5); break;
+            case 18: ADD_I8P16_PAIR2(3, 0); break;
+            case 19: ADD_I8P16_PAIR2(3, 1); break;
+            case 20: ADD_I8P16_PAIR2(3, 2); break;
+            case 21: ADD_I8P16_PAIR2(3, 3); break;
+            case 22: ADD_I8P16_PAIR2(3, 4); break;
+            case 23: ADD_I8P16_PAIR2(3, 5); break;
+            case 24: ADD_I8P16_PAIR2(4, 0); break;
+            case 25: ADD_I8P16_PAIR2(4, 1); break;
+            case 26: ADD_I8P16_PAIR2(4, 2); break;
+            case 27: ADD_I8P16_PAIR2(4, 3); break;
+            case 28: ADD_I8P16_PAIR2(4, 4); break;
+            case 29: ADD_I8P16_PAIR2(4, 5); break;
+            case 30: ADD_I8P16_PAIR2(5, 0); break;
+            case 31: ADD_I8P16_PAIR2(5, 1); break;
+            case 32: ADD_I8P16_PAIR2(5, 2); break;
+            case 33: ADD_I8P16_PAIR2(5, 3); break;
+            case 34: ADD_I8P16_PAIR2(5, 4); break;
+            case 35: ADD_I8P16_PAIR2(5, 5); break;
             default: break;
           }
-#undef ADD_I8P16_ROW16
+#undef ADD_I8P16_PAIR2
+#undef ADD_I8P16_ROW16_AT
 #undef ADD_I8P16_PACK
         }
       }

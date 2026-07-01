@@ -553,3 +553,12 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-07-01 14:02:40 CST, workId `IndexAdd_v149_case4_pack32_array.zip`.
 - Official result: pending; as of 14:04 CST the ranking row still pointed to v148's `2026/07/01 13:31:43` result.
+
+## v150 case4-pack16-pair2
+
+- Change: keep the Pack16 source tiling and register accumulator layout, but change the hot index loop from one 6-way switch per source row to one 36-way switch per two consecutive source rows. Host tiling explicitly prioritizes this exact path with `work_units=outer/16`, so it wins over the Pack32-array branch for `outer=8192`.
+- Rationale: Pack16 was the best confirmed scalar candidate, while Pack32-array risks accumulator spills. Pair2 reduces index/switch dispatch by half without dynamic accumulator indexing, testing whether branch overhead is still a major component after Pack16.
+- Package: `IndexAdd_v150_case4_pack16_pair2.zip`
+- SHA256: `9693874a60ea0df0f36dcfb2ef85a9041401d6c0a99d2da6033a56deed9c89d3`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: pending.
