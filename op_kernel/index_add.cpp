@@ -171,6 +171,10 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
+    if (UseCase4Int8GatherI16ReducePath()) {
+      ProcessCase4GatherI16ReduceInt8();
+      return;
+    }
     if (UseCase4Int8GatherFloatReducePath()) {
       ProcessCase4GatherFloatReduceInt8();
       return;
@@ -353,6 +357,12 @@ class IndexAddKernel {
   }
 
   __aicore__ inline bool UseCase4Int8GatherFloatReducePath() const {
+    return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
+           ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
+           index_len_ == 1024 && outer_ == 8192;
+  }
+
+  __aicore__ inline bool UseCase4Int8GatherI16ReducePath() const {
     return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
            ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
            index_len_ == 1024 && outer_ == 8192;
@@ -1507,6 +1517,99 @@ class IndexAddKernel {
       sum += gathered.GetValue(i);
     }
     return sum;
+  }
+
+  __aicore__ inline int32_t ReduceGatherI16Bucket(
+      LocalTensor<int16_t>& gathered, LocalTensor<int16_t>& src,
+      LocalTensor<uint32_t>& gather_offsets,
+      LocalTensor<uint16_t>& bucket_offsets, uint32_t bucket, uint32_t lane,
+      uint32_t count) {
+    if (count == 0) {
+      return 0;
+    }
+    uint32_t reduce_n = 16;
+    while (reduce_n < count) {
+      reduce_n <<= 1;
+    }
+    const uint32_t off_base = bucket * 512;
+    for (uint32_t i = 0; i < count; ++i) {
+      gather_offsets.SetValue(
+          i, static_cast<uint32_t>(bucket_offsets.GetValue(off_base + i)) +
+                 lane);
+    }
+    Duplicate(gathered, static_cast<int16_t>(0),
+              static_cast<int32_t>(reduce_n));
+    PipeBarrier<PIPE_V>();
+    Gather(gathered, src, gather_offsets, 0, count);
+    PipeBarrier<PIPE_V>();
+    for (uint32_t n = reduce_n; n > 16; n >>= 1) {
+      const uint32_t h = n >> 1;
+      Add(gathered, gathered, gathered[h], static_cast<int32_t>(h));
+      PipeBarrier<PIPE_V>();
+    }
+    int32_t sum = 0;
+    for (uint32_t i = 0; i < 16; ++i) {
+      sum += static_cast<int32_t>(gathered.GetValue(i));
+    }
+    return sum;
+  }
+
+  __aicore__ inline void ProcessCase4GatherI16ReduceInt8() {
+    constexpr uint32_t kTile = 512;
+    constexpr uint32_t kBucketOffsetU32Base =
+        (12 * kTile * sizeof(uint16_t)) / sizeof(uint32_t);
+    LocalTensor<uint16_t> bucket_offsets = index32_buf_.Get<uint16_t>();
+    LocalTensor<uint32_t> gather_offsets =
+        index32_buf_.Get<uint32_t>()[kBucketOffsetU32Base];
+    LocalTensor<int8_t> src_i8 = src_buf_.Get<int8_t>();
+    LocalTensor<half> src_h = src_cast_buf_.Get<half>();
+    LocalTensor<int16_t> src_i16 = acc_buf_.Get<int16_t>();
+    LocalTensor<int16_t> gathered = out_buf_.Get<int16_t>();
+    DataCopyPadParams pad{false, 0, 0, 0};
+    DataCopyParams row_copy{1, 42, 0, 0};
+    DataCopyParams src_copy{1, static_cast<uint16_t>(kTile * 7), 0, 0};
+    uint16_t bucket_counts[12];
+    BuildCase4TileBuckets(bucket_offsets, bucket_counts);
+
+    const uint32_t core_num = GetBlockNum();
+    const uint32_t cid = GetBlockIdx();
+    for (uint32_t outer_id = cid; outer_id < outer_; outer_id += core_num) {
+      int32_t sums[42];
+      for (uint32_t i = 0; i < 42; ++i) {
+        sums[i] = 0;
+      }
+      for (uint32_t tile = 0; tile < 2; ++tile) {
+        const uint32_t base = tile * kTile;
+        DataCopyPad(src_i8, source_i8_gm_[SourceOffset(outer_id, base, 0)],
+                    src_copy, pad);
+        PipeBarrier<PIPE_MTE2>();
+        Cast(src_h, src_i8, RoundMode::CAST_NONE, kTile * 7);
+        PipeBarrier<PIPE_V>();
+        Cast(src_i16, src_h, RoundMode::CAST_RINT, kTile * 7);
+        PipeBarrier<PIPE_V>();
+        const uint32_t bucket_base = tile * 6;
+        for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
+          const uint32_t bucket = bucket_base + axis_id;
+          const uint32_t count = bucket_counts[bucket];
+          for (uint32_t lane = 0; lane < 7; ++lane) {
+            sums[axis_id * 7 + lane] += ReduceGatherI16Bucket(
+                gathered, src_i16, gather_offsets, bucket_offsets, bucket,
+                lane, count);
+          }
+        }
+      }
+
+      DataCopyPad(src_i8, input_i8_gm_[InputOffset(outer_id, 0, 0)], row_copy,
+                  pad);
+      PipeBarrier<PIPE_MTE2>();
+      for (uint32_t i = 0; i < 42; ++i) {
+        const int32_t sum = static_cast<int32_t>(src_i8.GetValue(i)) + sums[i];
+        src_i8.SetValue(i, static_cast<int8_t>(sum));
+      }
+      DataCopyPad(output_i8_gm_[InputOffset(outer_id, 0, 0)], src_i8,
+                  row_copy);
+      PipeBarrier<PIPE_MTE3>();
+    }
   }
 
   __aicore__ inline void ProcessCase4GatherFloatReduceInt8() {

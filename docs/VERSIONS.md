@@ -600,3 +600,12 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 15:20:07 CST, workId `IndexAdd_v160_gather_float_reduce.zip`.
 - Official result: pending; as of 15:20 CST the ranking row still pointed to v151's `2026/07/01 14:23:54` `-1us` result.
+
+## v161 gather-i16-reduce
+
+- Change: add an exact hot Case4 Gather path before v160. It keeps the same bucketed offset strategy, but casts `int8 -> half -> int16`, gathers int16 lanes, and reduces with vector `Add<int16_t>` before scalar finalization to int8.
+- Rationale: int8 vector add and int8 DMA atomic are not supported on this 910B/CANN 8.5 path. The int16 gather/reduce version preserves final int8 modulo behavior while avoiding v160's float bandwidth and float arithmetic.
+- Package: `IndexAdd_v161_gather_i16_reduce.zip`
+- SHA256: `5c073be51e331fcae9288c422f23420ba6b8bc34a8ba7b56469e2686c605c432`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: pending.
