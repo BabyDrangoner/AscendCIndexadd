@@ -285,7 +285,17 @@ Conclusion: invalid candidate. Even with AIV-only buffer initialization and a gl
 - SHA256: `b8e607b3e332c79695f097ea2f5f277489430d76f4155ba1a76c191850c37b8e`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-07-01 11:03:27 CST, workId `IndexAdd_v137_case4_vcadd_f32_reduce.zip`.
-- Monitor: pending as of 2026-07-01 11:03:39 CST; ranking row still points to v132's 2026-07-01 10:33:48 result.
+- Official result:
+
+```text
+Case1: Run failed
+Case2: Run failed
+Case3: Run failed
+Case4: Run failed
+Case5: Run failed
+```
+
+Conclusion: invalid candidate. Because all five cases fail, the `WholeReduceSum`/`vcadd` addition likely makes the generated dynamic kernel package fail globally, even though the new branch is exact-shape guarded. Do not submit further candidates using this reduce primitive until it is validated in an isolated minimal operator.
 
 ## v138 case4-gather-f32-reduce
 
@@ -294,4 +304,22 @@ Conclusion: invalid candidate. Even with AIV-only buffer initialization and a gl
 - Package: `IndexAdd_v138_case4_gather_f32_reduce.zip`
 - SHA256: `cb6b8a572652422d26ce757b3095208a1cd6b8d29d88ce41ea79e860ef3c2b2d`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
-- Submit: not submitted yet; wait for v137's official result before overwriting the platform row.
+- Submit: not submitted. v137 showed an all-case runtime failure from the same reduce primitive family, so this package is preserved for source study only and should not overwrite the platform row.
+
+## v121 restore-submit 2026-07-01
+
+- Change: resubmit the known full-pass v121 package after v137 produced an all-case `Run failed` result.
+- Rationale: keep the official row out of the `-1` state while new candidates are developed from a stable Pack4/packed baseline.
+- Package: `IndexAdd_v121_pack4_packed_cached.zip`
+- SHA256: `47af783c8f9ad945af7b664a712c7c8884a9bbf2e26fff71e245fb53f05a6f93`
+- Submit: 2026-07-01 11:21:02 CST, workId `IndexAdd_v121_pack4_packed_cached.zip`.
+- Monitor: pending as of 2026-07-01 11:25:10 CST; ranking row still points to v137's 2026-07-01 11:03:25 all-failed result.
+
+## v139 restore-v121-source
+
+- Change: restore `op_host/index_add.cpp` and `op_kernel/index_add.cpp` to the v121 stable source state after the v137/v138 reduce/gather experiments.
+- Rationale: v137 failed all cases, so the next safe optimization work should start from the last known full-pass source rather than layering changes on top of high-risk vector-reduce/KFC code.
+- Package: `IndexAdd_v139_restore_v121_source.zip`
+- SHA256: `d03799f756d3131b1a99cd929824c09f437fd18c23d4608065d99a72c293928a`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: not submitted. v121 was already resubmitted and is pending; keep v139 as the source-aligned recovery package unless the v121 row fails to refresh.
