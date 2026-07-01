@@ -276,3 +276,12 @@ Conclusion: invalid candidate. Always registering the KFC object did not fix the
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 14:23:56 CST, workId `IndexAdd_v151_kfc_hotcase_outer8192.zip`.
 - Monitor: pending as of 2026-07-01 14:24 CST; ranking row still points to the older v148 result from 2026-07-01 13:31:43.
+
+## v152 kfc-b1-hotcase-outer8192
+
+- Change: keep v151's `outer == 8192` hot Case4 guard, but move the onehot B matrix from GM workspace to a B1 `TBuf` and shrink user workspace to only the per-block C tile.
+- Rationale: v151 tests the safer GM-B dense path. If v151 fails or is slow because of GM-B zero/fill overhead or B operand placement, this B1 variant retests the faster v124 data path while preserving the later AIV-only initialization and narrow hot-case dispatch fixes.
+- Package: `IndexAdd_v152_kfc_b1_hotcase_outer8192.zip`
+- SHA256: `044677a9782465a08fdf4eaf942d02bca7b351fcc9acdae6f9abf1fcffa7aca4`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: not submitted; wait for v151 official result before overwriting the platform row.

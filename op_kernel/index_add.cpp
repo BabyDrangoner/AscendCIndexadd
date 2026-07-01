@@ -80,7 +80,7 @@ constexpr uint32_t kDtypeBf16 = 5;
 using Case4DenseAType =
     MatmulType<TPosition::GM, CubeFormat::ND, int8_t, false>;
 using Case4DenseBType =
-    MatmulType<TPosition::GM, CubeFormat::ND, int8_t, false>;
+    MatmulType<TPosition::B1, CubeFormat::ND, int8_t, false>;
 using Case4DenseCType =
     MatmulType<TPosition::GM, CubeFormat::ND, int32_t, false>;
 
@@ -248,10 +248,6 @@ class IndexAddKernel {
           (uint64_t)GetBlockNum() * kCase4DenseM * kCase4DenseN;
       dense_c_gm_.SetGlobalBuffer(
           (__gm__ int32_t*)user_workspace, c_elems);
-      dense_b_gm_.SetGlobalBuffer(
-          (__gm__ int8_t*)((__gm__ uint8_t*)user_workspace +
-                           c_elems * sizeof(int32_t)),
-          GetBlockNum() * kCase4DenseBBytes);
     }
 
     const uint32_t rows = outer_ * axis_;
@@ -273,6 +269,9 @@ class IndexAddKernel {
         pipe_.InitBuffer(index64_buf_, AlignUp32(kIndexTileBytes));
       } else {
         pipe_.InitBuffer(index32_buf_, AlignUp32(kIndexTileBytes));
+      }
+      if (UseCase4DenseGmAPath()) {
+        pipe_.InitBuffer(dense_b1_buf_, AlignUp32(kCase4DenseBBytes));
       }
     }
     InitCase4DenseTiling();
@@ -1243,7 +1242,7 @@ class IndexAddKernel {
 
   __aicore__ inline void ProcessCase4DenseGmAInt8() {
     LocalTensor<int32_t> idx = index32_buf_.Get<int32_t>();
-    LocalTensor<int8_t> zero = src_buf_.Get<int8_t>();
+    LocalTensor<int8_t> mat_b = dense_b1_buf_.Get<int8_t>();
     const uint32_t cid = GetBlockIdx();
     const uint32_t core_num = GetBlockNum();
     const uint32_t outer_groups =
@@ -1254,9 +1253,6 @@ class IndexAddKernel {
     }
 
     RawCopyIndexTile(idx, 0, 1024);
-    for (uint32_t i = 0; i < kDataBytes; ++i) {
-      zero.SetValue(i, 0);
-    }
     for (uint32_t tile = 0; tile < kCase4DenseNTiles; ++tile) {
       bool has_work = false;
       for (uint32_t group = 0; group < outer_groups; ++group) {
@@ -1268,12 +1264,8 @@ class IndexAddKernel {
       }
       if (!has_work) continue;
 
-      const uint64_t b_base = (uint64_t)cid * kCase4DenseBBytes;
-      for (uint32_t off = 0; off < kCase4DenseBBytes; off += kDataBytes) {
-        const uint32_t bytes = MinU32(kDataBytes, kCase4DenseBBytes - off);
-        DataCopyParams zero_copy{1, (uint16_t)bytes, 0, 0};
-        DataCopyPad(dense_b_gm_[b_base + off], zero, zero_copy);
-        PipeBarrier<PIPE_MTE3>();
+      for (uint32_t i = 0; i < kCase4DenseBBytes; ++i) {
+        mat_b.SetValue(i, 0);
       }
       const uint32_t col_base = tile * kCase4DenseN;
       for (uint32_t k = 0; k < 1024; ++k) {
@@ -1286,8 +1278,7 @@ class IndexAddKernel {
           const uint32_t out_col = axis_u * kCase4DenseInner + lane;
           if (out_col >= col_base && out_col < col_base + kCase4DenseN) {
             const uint32_t b_row = k * kCase4DenseInner + lane;
-            dense_b_gm_.SetValue(
-                b_base + b_row * kCase4DenseN + (out_col - col_base), 1);
+            mat_b.SetValue(b_row * kCase4DenseN + (out_col - col_base), 1);
           }
         }
       }
@@ -1301,7 +1292,7 @@ class IndexAddKernel {
             (uint64_t)cid * kCase4DenseM * kCase4DenseN;
         dense_mm_.SetTail(rows, kCase4DenseN, kCase4DenseK);
         dense_mm_.SetTensorA(source_i8_gm_[SourceOffset(outer_base, 0, 0)]);
-        dense_mm_.SetTensorB(dense_b_gm_[b_base]);
+        dense_mm_.SetTensorB(mat_b);
         dense_mm_.IterateAll(dense_c_gm_[workspace_base], 0, false, true);
 
         for (uint32_t r = 0; r < rows; ++r) {
@@ -4150,7 +4141,6 @@ class IndexAddKernel {
   GlobalTensor<int32_t> index32_gm_;
   GlobalTensor<int64_t> index64_gm_;
   GlobalTensor<int32_t> dense_c_gm_;
-  GlobalTensor<int8_t> dense_b_gm_;
   TPipe pipe_;
   Case4DenseMatmul dense_mm_;
   TCubeTiling dense_tiling_;
@@ -4160,6 +4150,7 @@ class IndexAddKernel {
   TBuf<TPosition::VECCALC> out_buf_;
   TBuf<TPosition::VECCALC> acc_buf_;
   TBuf<TPosition::VECCALC> src_cast_buf_;
+  TBuf<TPosition::B1> dense_b1_buf_;
 };
 
 extern "C" __global__ __aicore__ void index_add(
