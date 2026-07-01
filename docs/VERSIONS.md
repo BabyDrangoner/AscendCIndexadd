@@ -769,4 +769,5 @@ Conclusion: full pass, but no improvement over v162/v148. Moving `SetAtomicAdd<i
 - Package: `IndexAdd_v173_case4_early_exit.zip`
 - SHA256: `5334905105f8badd22c2817262a0d859a2c0a963e0d36b9a292c4642e08a7f4a`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
-- Submit: not submitted yet.
+- Submit: 2026-07-01 17:21:15 CST, workId `IndexAdd_v173_case4_early_exit.zip`.
+- Official result: pending.
