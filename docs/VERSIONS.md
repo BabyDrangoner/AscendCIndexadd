@@ -276,3 +276,12 @@ Conclusion: invalid candidate. Always registering the KFC object did not fix the
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 14:23:56 CST, workId `IndexAdd_v151_kfc_hotcase_outer8192.zip`.
 - Monitor: pending as of 2026-07-01 14:24 CST; ranking row still points to the older v148 result from 2026-07-01 13:31:43.
+
+## v154 kfc-gmb-flush-hotcase-outer8192
+
+- Change: keep the v151 M32 GM-B dense KFC path, but add `Barrier()` plus `DataCacheCleanAndInvalid(... ENTIRE_DATA_CACHE)` after the AIV-generated onehot B matrix is written to GM workspace and before `SetTensorB/IterateAll`.
+- Rationale: the generated B matrix is produced by AIV and consumed by AIC. If v151 fails on Case4, one plausible cause is GM/cache visibility for scalar `SetValue` writes into B. This candidate isolates that hypothesis without changing the dense math.
+- Package: `IndexAdd_v154_kfc_gmb_flush_outer8192.zip`
+- SHA256: `b148d74e0805dc7a445b1539728db85f9bf7915e7dce6f9a03c7d497e5ea4a66`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: not submitted yet. Wait for the true v151 result before overwriting the platform row.

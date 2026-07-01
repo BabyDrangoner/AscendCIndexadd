@@ -1291,6 +1291,10 @@ class IndexAddKernel {
           }
         }
       }
+      Barrier();
+      DataCacheCleanAndInvalid<int8_t, CacheLine::ENTIRE_DATA_CACHE>(
+          dense_b_gm_[b_base]);
+      Barrier();
 
       for (uint32_t group = 0; group < outer_groups; ++group) {
         const uint32_t work = tile * outer_groups + group;
