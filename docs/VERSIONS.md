@@ -489,7 +489,18 @@ Conclusion: full pass and better than the 12:23 v121 recovery run by 14.088us, b
 - SHA256: `cc6ba488923156c52f8bc2f7c5f65e21818eca8b58f6c8e2762e70e83ea1c2eb`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-07-01 13:11:58 CST, workId `IndexAdd_v146_pack5_blockdim24.zip`.
-- Official result: pending; as of 13:20 CST the ranking row still pointed to v145's `2026/07/01 13:01:52` result.
+- Official result:
+
+```text
+Case1: Pass, Result: 39.24
+Case2: Pass, Result: 12619.312
+Case3: Pass, Result: 60755.156
+Case4: Pass, Result: 1729292.38
+Case5: Pass, Result: 15627.58
+prof_sum: 1818333.668
+```
+
+Conclusion: full pass but 9.604us slower than v145. The Pack5/blockDim24 scheduling experiment does not materially affect the real hot Case4, supporting the profile-based correction that the hidden Case4 outer is likely `8192` rather than a small multiple of five.
 
 ## v147 case4-pack8-packed
 
