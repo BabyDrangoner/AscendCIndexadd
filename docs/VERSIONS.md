@@ -284,4 +284,5 @@ Conclusion: invalid candidate. Even with AIV-only buffer initialization and a gl
 - Package: `IndexAdd_v137_case4_vcadd_f32_reduce.zip`
 - SHA256: `b8e607b3e332c79695f097ea2f5f277489430d76f4155ba1a76c191850c37b8e`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
-- Submit: not submitted yet.
+- Submit: 2026-07-01 11:03:27 CST, workId `IndexAdd_v137_case4_vcadd_f32_reduce.zip`.
+- Monitor: pending as of 2026-07-01 11:03:39 CST; ranking row still points to v132's 2026-07-01 10:33:48 result.
