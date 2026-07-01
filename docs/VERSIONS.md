@@ -563,3 +563,12 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-07-01 14:10:18 CST, workId `IndexAdd_v150_case4_pack16_pair2.zip`.
 - Official result: pending; as of 14:10 CST the ranking row still pointed to v148's `2026/07/01 13:31:43` result.
+
+## v191 pack16-paircode
+
+- Change: restart from the v150 Pack16Pair2 source and precompute the 512 shared `idx0 * 6 + idx1` pair codes once per core in UB. The Pack16 hot loop now reads a cached `uint32_t` code instead of two int32 index values for every Pack16 outer group.
+- Rationale: v190 tests pair-code on the lean Pack4 baseline. This applies the same shared-index decode removal to the lower-group-count Pack16 path, where each decoded code is reused across 16 outer rows.
+- Package: `IndexAdd_v191_pack16_paircode.zip`
+- SHA256: `b338eeb16b24fe43845178409552a6b51786897b214c0cf7658f3c08da0bfb3f`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted.

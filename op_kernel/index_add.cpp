@@ -1720,6 +1720,7 @@ class IndexAddKernel {
     constexpr uint32_t kSlotBytes = 4096;
     constexpr uint32_t kSlotU64 = kSlotBytes >> 3;
     LocalTensor<int32_t> idx = index32_buf_.Get<int32_t>();
+    LocalTensor<uint32_t> pair_code = index32_buf_.Get<uint32_t>()[1024];
     LocalTensor<int8_t> src0 = src_buf_.Get<int8_t>();
     LocalTensor<int8_t> src1 = src_buf_.Get<int8_t>()[kSlotBytes];
     LocalTensor<int8_t> src2 = src_buf_.Get<int8_t>()[kSlotBytes * 2];
@@ -1761,6 +1762,11 @@ class IndexAddKernel {
     const uint32_t core_num = GetBlockNum();
     const uint32_t cid = GetBlockIdx();
     RawCopyIndexTile(idx, 0, 1024);
+    for (uint32_t p = 0; p < 512; ++p) {
+      const uint32_t r0 = static_cast<uint32_t>(idx.GetValue(p << 1));
+      const uint32_t r1 = static_cast<uint32_t>(idx.GetValue((p << 1) + 1));
+      pair_code.SetValue(p, r0 * 6 + r1);
+    }
 
     for (uint32_t group = cid; group < groups; group += core_num) {
       const uint32_t outer0 = group << 4;
@@ -1892,10 +1898,8 @@ class IndexAddKernel {
             ADD_I8P16_ROW16_AT(R0, src_off0); \
             ADD_I8P16_ROW16_AT(R1, src_off1); \
           } while (0)
-          const uint32_t idx0 = static_cast<uint32_t>(idx.GetValue(base + i));
-          const uint32_t idx1 =
-              static_cast<uint32_t>(idx.GetValue(base + i + 1));
-          switch (idx0 * 6 + idx1) {
+          const uint32_t code = pair_code.GetValue((base + i) >> 1);
+          switch (code) {
             case 0: ADD_I8P16_PAIR2(0, 0); break;
             case 1: ADD_I8P16_PAIR2(0, 1); break;
             case 2: ADD_I8P16_PAIR2(0, 2); break;
