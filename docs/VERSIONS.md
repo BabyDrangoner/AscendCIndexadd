@@ -418,3 +418,12 @@ prof_sum: 1818394.932
 ```
 
 Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142.188us. Skipping idle-block index copy is not beneficial; either the added branch/code shape hurts the hot kernel, or the idle copy was not visible in profiling.
+
+## v121 restore-submit 2026-07-01 12:23
+
+- Change: resubmit the known best v121 package after v140-v143 all failed to beat it, and restore local source back to the v121 kernel/host baseline.
+- Rationale: keep the official row on the best stable full-pass candidate while the next algorithmic attempt is prepared separately.
+- Package: `IndexAdd_v121_pack4_packed_cached.zip`
+- SHA256: `47af783c8f9ad945af7b664a712c7c8884a9bbf2e26fff71e245fb53f05a6f93`
+- Submit: 2026-07-01 12:23:45 CST, workId `IndexAdd_v121_pack4_packed_cached.zip`.
+- Monitor: pending as of 2026-07-01 12:23:58 CST; ranking row still points to v143's 2026-07-01 12:10:54 result.
