@@ -531,4 +531,15 @@ Conclusion: full pass and 52.56us faster than v146, confirming the Pack8 path hi
 - SHA256: `9ec803acc7f6a327bbb32f028f9240cee033abd7a7be9949d46c157a981dfe0d`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-07-01 13:31:45 CST, workId `IndexAdd_v148_case4_pack16_packed.zip`.
-- Official result: pending; as of 13:31 CST the ranking row still pointed to v145's `2026/07/01 13:01:52` result.
+- Official result:
+
+```text
+Case1: Pass, Result: 40.952
+Case2: Pass, Result: 12576.772
+Case3: Pass, Result: 60714.456
+Case4: Pass, Result: 1729255.06
+Case5: Pass, Result: 15612.3
+prof_sum: 1818199.54
+```
+
+Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar PackN trend, but the total gain remains far below the order-level target; the hot loop is still dominated by scalar packed loads/adds and index dispatch.
