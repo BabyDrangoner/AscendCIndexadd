@@ -22,6 +22,7 @@ constexpr uint32_t kCase4MaskReduceElems = kCase4MaskReduceTile * 7;
 constexpr uint32_t kCase4MaskReduceMaskBytes = kCase4MaskReduceElems / 8;
 constexpr uint32_t kCase4MaskReduceIdxBytes =
     kCase4MaskReduceElems * sizeof(int32_t);
+constexpr uint32_t kCase4Pack8SrcBufBytes = 32768;
 constexpr uint32_t kInner1RowCap = kDataBytes / sizeof(float);
 constexpr uint32_t kDtypeInt8 = 1;
 constexpr uint32_t kDtypeFp16 = 2;
@@ -162,10 +163,10 @@ class IndexAddKernel {
     if (work_hi_ > work_units) work_hi_ = work_units;
 
     const uint32_t buf_bytes = AlignUp32(kDataBytes);
-    pipe_.InitBuffer(src_buf_, buf_bytes);
+    pipe_.InitBuffer(src_buf_, AlignUp32(kCase4Pack8SrcBufBytes));
     pipe_.InitBuffer(out_buf_, buf_bytes);
     pipe_.InitBuffer(acc_buf_, buf_bytes);
-    pipe_.InitBuffer(src_cast_buf_, buf_bytes);
+    pipe_.InitBuffer(src_cast_buf_, AlignUp32(kCase4Pack8SrcBufBytes));
     if (index_dtype_size_ == 8) {
       pipe_.InitBuffer(index64_buf_, AlignUp32(kIndexTileBytes));
     } else {
@@ -1899,35 +1900,35 @@ class IndexAddKernel {
     LocalTensor<int8_t> src1 = src_buf_.Get<int8_t>()[kSlotBytes];
     LocalTensor<int8_t> src2 = src_buf_.Get<int8_t>()[kSlotBytes * 2];
     LocalTensor<int8_t> src3 = src_buf_.Get<int8_t>()[kSlotBytes * 3];
-    LocalTensor<int8_t> src4 = src_cast_buf_.Get<int8_t>();
-    LocalTensor<int8_t> src5 = src_cast_buf_.Get<int8_t>()[kSlotBytes];
-    LocalTensor<int8_t> src6 = src_cast_buf_.Get<int8_t>()[kSlotBytes * 2];
-    LocalTensor<int8_t> src7 = src_cast_buf_.Get<int8_t>()[kSlotBytes * 3];
-    LocalTensor<int8_t> src8 = acc_buf_.Get<int8_t>();
-    LocalTensor<int8_t> src9 = acc_buf_.Get<int8_t>()[kSlotBytes];
-    LocalTensor<int8_t> src10 = acc_buf_.Get<int8_t>()[kSlotBytes * 2];
-    LocalTensor<int8_t> src11 = acc_buf_.Get<int8_t>()[kSlotBytes * 3];
-    LocalTensor<int8_t> src12 = out_buf_.Get<int8_t>();
-    LocalTensor<int8_t> src13 = out_buf_.Get<int8_t>()[kSlotBytes];
-    LocalTensor<int8_t> src14 = out_buf_.Get<int8_t>()[kSlotBytes * 2];
-    LocalTensor<int8_t> src15 = out_buf_.Get<int8_t>()[kSlotBytes * 3];
+    LocalTensor<int8_t> src4 = src_buf_.Get<int8_t>()[kSlotBytes * 4];
+    LocalTensor<int8_t> src5 = src_buf_.Get<int8_t>()[kSlotBytes * 5];
+    LocalTensor<int8_t> src6 = src_buf_.Get<int8_t>()[kSlotBytes * 6];
+    LocalTensor<int8_t> src7 = src_buf_.Get<int8_t>()[kSlotBytes * 7];
+    LocalTensor<int8_t> src8 = src_cast_buf_.Get<int8_t>();
+    LocalTensor<int8_t> src9 = src_cast_buf_.Get<int8_t>()[kSlotBytes];
+    LocalTensor<int8_t> src10 = src_cast_buf_.Get<int8_t>()[kSlotBytes * 2];
+    LocalTensor<int8_t> src11 = src_cast_buf_.Get<int8_t>()[kSlotBytes * 3];
+    LocalTensor<int8_t> src12 = src_cast_buf_.Get<int8_t>()[kSlotBytes * 4];
+    LocalTensor<int8_t> src13 = src_cast_buf_.Get<int8_t>()[kSlotBytes * 5];
+    LocalTensor<int8_t> src14 = src_cast_buf_.Get<int8_t>()[kSlotBytes * 6];
+    LocalTensor<int8_t> src15 = src_cast_buf_.Get<int8_t>()[kSlotBytes * 7];
     LocalTensor<int8_t> row = src0;
     LocalTensor<uint64_t> src0u = src_buf_.Get<uint64_t>();
     LocalTensor<uint64_t> src1u = src_buf_.Get<uint64_t>()[kSlotU64];
     LocalTensor<uint64_t> src2u = src_buf_.Get<uint64_t>()[kSlotU64 * 2];
     LocalTensor<uint64_t> src3u = src_buf_.Get<uint64_t>()[kSlotU64 * 3];
-    LocalTensor<uint64_t> src4u = src_cast_buf_.Get<uint64_t>();
-    LocalTensor<uint64_t> src5u = src_cast_buf_.Get<uint64_t>()[kSlotU64];
-    LocalTensor<uint64_t> src6u = src_cast_buf_.Get<uint64_t>()[kSlotU64 * 2];
-    LocalTensor<uint64_t> src7u = src_cast_buf_.Get<uint64_t>()[kSlotU64 * 3];
-    LocalTensor<uint64_t> src8u = acc_buf_.Get<uint64_t>();
-    LocalTensor<uint64_t> src9u = acc_buf_.Get<uint64_t>()[kSlotU64];
-    LocalTensor<uint64_t> src10u = acc_buf_.Get<uint64_t>()[kSlotU64 * 2];
-    LocalTensor<uint64_t> src11u = acc_buf_.Get<uint64_t>()[kSlotU64 * 3];
-    LocalTensor<uint64_t> src12u = out_buf_.Get<uint64_t>();
-    LocalTensor<uint64_t> src13u = out_buf_.Get<uint64_t>()[kSlotU64];
-    LocalTensor<uint64_t> src14u = out_buf_.Get<uint64_t>()[kSlotU64 * 2];
-    LocalTensor<uint64_t> src15u = out_buf_.Get<uint64_t>()[kSlotU64 * 3];
+    LocalTensor<uint64_t> src4u = src_buf_.Get<uint64_t>()[kSlotU64 * 4];
+    LocalTensor<uint64_t> src5u = src_buf_.Get<uint64_t>()[kSlotU64 * 5];
+    LocalTensor<uint64_t> src6u = src_buf_.Get<uint64_t>()[kSlotU64 * 6];
+    LocalTensor<uint64_t> src7u = src_buf_.Get<uint64_t>()[kSlotU64 * 7];
+    LocalTensor<uint64_t> src8u = src_cast_buf_.Get<uint64_t>();
+    LocalTensor<uint64_t> src9u = src_cast_buf_.Get<uint64_t>()[kSlotU64];
+    LocalTensor<uint64_t> src10u = src_cast_buf_.Get<uint64_t>()[kSlotU64 * 2];
+    LocalTensor<uint64_t> src11u = src_cast_buf_.Get<uint64_t>()[kSlotU64 * 3];
+    LocalTensor<uint64_t> src12u = src_cast_buf_.Get<uint64_t>()[kSlotU64 * 4];
+    LocalTensor<uint64_t> src13u = src_cast_buf_.Get<uint64_t>()[kSlotU64 * 5];
+    LocalTensor<uint64_t> src14u = src_cast_buf_.Get<uint64_t>()[kSlotU64 * 6];
+    LocalTensor<uint64_t> src15u = src_cast_buf_.Get<uint64_t>()[kSlotU64 * 7];
     LocalTensor<uint64_t> rowu = src0u;
     DataCopyPadParams pad{false, 0, 0, 0};
     DataCopyParams rows_copy{1, 42, 0, 0};
@@ -2433,8 +2434,8 @@ class IndexAddKernel {
     LocalTensor<uint64_t> rowu = src0u;
     DataCopyPadParams pad{false, 0, 0, 0};
     DataCopyParams rows_copy{1, static_cast<uint16_t>(kBulkRowBytes), 0, 0};
-    DataCopyParams src4_copy{
-        4, static_cast<uint16_t>(kSrcTileBytes),
+    DataCopyParams src8_copy{
+        8, static_cast<uint16_t>(kSrcTileBytes),
         static_cast<uint16_t>(kSrcTileBytes),
         static_cast<uint16_t>(kSlotBytes - kSrcTileBytes)};
     const uint32_t groups = outer_ >> 4;
@@ -2502,13 +2503,9 @@ class IndexAddKernel {
 
       for (uint32_t base = 0; base < 1024; base += kTile) {
         DataCopyPad(src0, source_i8_gm_[SourceOffset(outer0, base, 0)],
-                    src4_copy, pad);
-        DataCopyPad(src4, source_i8_gm_[SourceOffset(outer4, base, 0)],
-                    src4_copy, pad);
+                    src8_copy, pad);
         DataCopyPad(src8, source_i8_gm_[SourceOffset(outer8, base, 0)],
-                    src4_copy, pad);
-        DataCopyPad(src12, source_i8_gm_[SourceOffset(outer12, base, 0)],
-                    src4_copy, pad);
+                    src8_copy, pad);
         PipeBarrier<PIPE_MTE2>();
 
         for (uint32_t i = 0; i < kTile; i += 2) {

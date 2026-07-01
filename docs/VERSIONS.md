@@ -743,3 +743,20 @@ Conclusion: full pass, but no improvement over v162/v148. Moving `SetAtomicAdd<i
 - Verification: Docker build passed with normal generated op_api; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source; zip does not contain the v168 `op_host/fast/aclnn_index_add.cpp` shim.
 - Submit: 2026-07-01 16:47:26 CST, workId `IndexAdd_v169_pack16_bulk_dma.zip`.
 - Official result: pending; as of 16:47 CST the ranking row still pointed to v164's `2026/07/01 15:47:37` result.
+
+## v171 pack16-src16-dma
+
+- Change: try to put all 16 Pack16 source slots into one 64KB `src_buf_` and replace v169's four 4-block source `DataCopyPad` calls with one 16-block strided `DataCopyPad`.
+- Rationale: v169 still leaves two source-copy commands per 512-index tile per half group; this probe checks whether the DMA command granularity can be pushed to the full 16-outer group before changing arithmetic.
+- Package: none.
+- Verification: Docker build failed during offline `opc` binary generation at `CompileStage.INFERCHANNEL` for several dtype variants, with the detailed CANN error message empty.
+- Conclusion: do not submit. The failure likely comes from the 64KB single TBuf shape or the 16-block strided copy channel inference limit; keep future source-DMA coarsening at 32KB/8-block or below unless isolated.
+
+## v172 pack16-src8-dma
+
+- Change: keep v169's Pack16 pair2 arithmetic and bulk input/output copies, but store the first 8 source slots in a 32KB `src_buf_` and the second 8 slots in a 32KB `src_cast_buf_`. Each 512-index tile now uses two 8-block strided source `DataCopyPad` calls instead of v169's four 4-block calls.
+- Rationale: this is the safer follow-up to v171. It halves the source DMA command count versus v169 without using a 64KB TBuf or a 16-block strided copy.
+- Package: `IndexAdd_v172_pack16_src8_dma.zip`
+- SHA256: `5fd07584ca3603d06dcf089a1700aca48e4718655cccc6faf494bdf1651c3a89`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: not submitted yet; wait for v169's official result so the platform row is not overwritten.
