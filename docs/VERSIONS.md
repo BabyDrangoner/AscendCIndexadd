@@ -542,4 +542,4 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - Package: `IndexAdd_v200_maskreduce_outer120.zip`
 - SHA256: `659cc38f1bae48213ba2b8d93bc8c7a35eb009688774e86da1803055a3d257f2`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
-- Submit: not submitted.
+- Submit: submitted at `2026-07-01 21:07:37 CST` as `IndexAdd_v200_maskreduce_outer120.zip`; first monitor still shows the old `2026/07/01 19:47:05` ranked result, so the v200 evaluation is pending.
