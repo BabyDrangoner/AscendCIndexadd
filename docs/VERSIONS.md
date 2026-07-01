@@ -459,3 +459,12 @@ prof_sum: 1912423.38
 ```
 
 Conclusion: full pass but much slower than v121. Pack3 gives all 40 blocks useful work, but the extra 40 Pack3 index loops versus 30 Pack4 loops dominates; lower register pressure and occupancy do not compensate.
+
+## v145 case4-pack5-packed
+
+- Change: replace the v144 Pack3 path with an exact Case4 Pack5 path for `index_len=1024`. The fifth source tile reuses the spare region in `index32_buf_` after the 4KB cached-index area, so the kernel can process five outer rows per group without adding workspace.
+- Rationale: Pack3 proved that full 40-core occupancy is not enough. Pack5 reduces Case4 to 24 source-order groups, 20% fewer switch/index iterations than Pack4's 30 groups, while keeping packed int8 arithmetic. This tests whether fewer scalar dispatch iterations can overcome higher register pressure.
+- Package: `IndexAdd_v145_case4_pack5_packed.zip`
+- SHA256: `0823c0c9558f1dec858fe9334bb9c2afb3d5a11621f5dcf7758d2dd2b144825c`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: pending.
