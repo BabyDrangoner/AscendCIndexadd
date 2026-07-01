@@ -618,4 +618,5 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - Package: `IndexAdd_v162_atomic_i8_hotcase.zip`
 - SHA256: `3d6d3c6ab4715f05d3fe47467a3a399a3baf8d9683ce4980543cce9587ac217e`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
-- Submit: pending.
+- Submit: 2026-07-01 15:37:56 CST, workId `IndexAdd_v162_atomic_i8_hotcase.zip`.
+- Official result: pending.
