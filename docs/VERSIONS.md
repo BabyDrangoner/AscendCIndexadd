@@ -634,3 +634,13 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `32e333a99e1d117a078ee14ce3ee862fe01a588c3eec585b3245faedb7cdd73a`
 - Verification: Docker build passed; top-level host/kernel source matches the zip.
 - Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
+
+## v218 gatherb-outputvec0-bd48
+
+- Change: keep v216's exact int8 Case4 Gatherb/finalreduce path, and vectorize the first outer row's final `input + partial` writeback with a padded 6x16 local row layout.
+- Rationale: test whether the remaining scalar writeback tail can be moved to AIV without touching the second outer's lane-8 partial alignment hazard.
+- Package: `IndexAdd_v218_gatherb_outputvec0_bd48.zip`
+- SHA256: `444335611a4efbcf303cafef9146463e15f5b90430e4d0537bcc6ad7e3c9edb0`
+- Verification: Docker build passed; top-level host/kernel source matches the zip.
+- Risk note: experimental only. The new writeback uses vector `Cast<int16_t, int8_t>`; submit only after confirming the cast matches PyTorch/C++ int8 wraparound semantics rather than saturation.
+- Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).

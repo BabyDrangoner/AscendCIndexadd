@@ -1292,6 +1292,36 @@ class IndexAddKernel {
     }
   }
 
+  __aicore__ inline void StoreCase4GatherbOuter0Vector(
+      const uint32_t outer_id, LocalTensor<int8_t>& row_i8,
+      LocalTensor<half>& row_h, LocalTensor<int16_t>& row_i16,
+      LocalTensor<int16_t>& partial, const DataCopyPadParams& pad) {
+    DataCopyParams row_read{6, 7, 0, kCase4GatherbWidth - 7};
+    DataCopyParams row_write{6, 7, kCase4GatherbWidth - 7, 0};
+    DataCopyPad(row_i8, input_i8_gm_[InputOffset(outer_id, 0, 0)],
+                row_read, pad);
+    PipeBarrier<PIPE_MTE2>();
+    Cast(row_h, row_i8, RoundMode::CAST_NONE,
+         static_cast<int32_t>(6 * kCase4GatherbWidth));
+    PipeBarrier<PIPE_V>();
+    Cast(row_i16, row_h, RoundMode::CAST_RINT,
+         static_cast<int32_t>(6 * kCase4GatherbWidth));
+    PipeBarrier<PIPE_V>();
+    for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
+      Add(row_i16[axis_id * kCase4GatherbWidth],
+          row_i16[axis_id * kCase4GatherbWidth],
+          partial[axis_id * 8 * kCase4GatherbWidth],
+          static_cast<int32_t>(kCase4GatherbWidth));
+      PipeBarrier<PIPE_V>();
+    }
+    Cast(row_i8, row_i16, RoundMode::CAST_RINT,
+         static_cast<int32_t>(6 * kCase4GatherbWidth));
+    PipeBarrier<PIPE_V>();
+    DataCopyPad(output_i8_gm_[InputOffset(outer_id, 0, 0)], row_i8,
+                row_write);
+    PipeBarrier<PIPE_MTE3>();
+  }
+
   __aicore__ inline void ProcessCase4GatherbReduceI8() {
     constexpr uint32_t kPartialElems = 6 * 8 * kCase4GatherbWidth;
     LocalTensor<uint32_t> offsets = index32_buf_.Get<uint32_t>();
@@ -1380,21 +1410,8 @@ class IndexAddKernel {
                              t1_s5, t1_c5, 5);
       FinalReduceCase4GatherbPartial(partial);
 
-      DataCopyPad(src_i8, input_i8_gm_[InputOffset(outer_id, 0, 0)], row_copy,
-                  pad);
-      PipeBarrier<PIPE_MTE2>();
-      for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
-        const uint32_t dst_base = axis_id * 7;
-        const uint32_t partial_base = axis_id * 8 * kCase4GatherbWidth;
-        for (uint32_t w = 0; w < 7; ++w) {
-          int32_t sum = static_cast<int32_t>(src_i8.GetValue(dst_base + w));
-          sum += static_cast<int32_t>(partial.GetValue(partial_base + w));
-          src_i8.SetValue(dst_base + w, static_cast<int8_t>(sum));
-        }
-      }
-      DataCopyPad(output_i8_gm_[InputOffset(outer_id, 0, 0)], src_i8,
-                  row_copy);
-      PipeBarrier<PIPE_MTE3>();
+      StoreCase4GatherbOuter0Vector(outer_id, src_i8, gathered_h, gathered_i16,
+                                    partial, pad);
 
       DataCopyPad(src_i8, input_i8_gm_[InputOffset(outer_id + 1, 0, 0)],
                   row_copy, pad);
