@@ -18,7 +18,9 @@ constexpr uint32_t kWideGroupRows = 32;
 constexpr uint32_t kSmallInnerGroupRows = 256;
 constexpr uint32_t kCase4I8AlignedRows = 32;
 constexpr uint32_t kCase4MaskReduceTile = 512;
-constexpr uint32_t kCase4MaskReduceElems = kCase4MaskReduceTile * 7;
+constexpr uint32_t kCase4MaskReduceWidth = 8;
+constexpr uint32_t kCase4MaskReduceElems =
+    kCase4MaskReduceTile * kCase4MaskReduceWidth;
 constexpr uint32_t kCase4MaskReduceMaskBytes = kCase4MaskReduceElems / 8;
 constexpr uint32_t kCase4MaskReduceIdxBytes =
     kCase4MaskReduceElems * sizeof(int32_t);
@@ -171,12 +173,12 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
-    if (UseCase4Int8StridedAtomicBatchPath()) {
-      ProcessCase4StridedAtomicBatch16Int8();
+    if (UseCase4MaskReduceI8Path()) {
+      ProcessCase4MaskReduceI8();
       return;
     }
-    if (UseCase4MaskReduceI16Path()) {
-      ProcessCase4MaskReduceI16();
+    if (UseCase4Int8StridedAtomicBatchPath()) {
+      ProcessCase4StridedAtomicBatch16Int8();
       return;
     }
     if (UseCase4Int8Pack4Path()) {
@@ -310,8 +312,10 @@ class IndexAddKernel {
            index_len_ >= 512 && ((outer_ & 3) == 0);
   }
 
-  __aicore__ inline bool UseCase4MaskReduceI16Path() const {
-    return false;
+  __aicore__ inline bool UseCase4MaskReduceI8Path() const {
+    return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
+           ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
+           index_len_ == 1024 && outer_ == 8192;
   }
 
   __aicore__ inline bool UseCase4Int8Outer1Path() const {
@@ -1124,11 +1128,11 @@ class IndexAddKernel {
     }
   }
 
-  __aicore__ inline void ProcessCase4MaskReduceI16() {
+  __aicore__ inline void ProcessCase4MaskReduceI8() {
     LocalTensor<int32_t> idx_exp = index32_buf_.Get<int32_t>();
     LocalTensor<uint8_t> masks =
         index32_buf_.Get<uint8_t>()[kCase4MaskReduceIdxBytes];
-    constexpr uint32_t kPartialElems = 6 * 8 * 7;
+    constexpr uint32_t kPartialElems = 6 * 8 * kCase4MaskReduceWidth;
     LocalTensor<int8_t> src_i8 = src_buf_.Get<int8_t>();
     LocalTensor<half> src_h = src_cast_buf_.Get<half>();
     LocalTensor<half> masked_h = out_buf_.Get<half>();
@@ -1136,14 +1140,14 @@ class IndexAddKernel {
     LocalTensor<int16_t> partial = acc_buf_.Get<int16_t>()[kCase4MaskReduceElems];
     DataCopyPadParams pad{false, 0, 0, 0};
     DataCopyParams row_copy{1, 42, 0, 0};
-    DataCopyParams src_copy{1, static_cast<uint16_t>(kCase4MaskReduceElems), 0,
-                            0};
+    DataCopyParams src_copy{static_cast<uint16_t>(kCase4MaskReduceTile), 7, 0,
+                            kCase4MaskReduceWidth - 7};
 
     for (uint32_t tile = 0; tile < 2; ++tile) {
       const uint32_t base = tile * kCase4MaskReduceTile;
       for (uint32_t i = 0; i < kCase4MaskReduceTile; ++i) {
         const int32_t v = index32_gm_.GetValue(base + i);
-        const uint32_t off = i * 7;
+        const uint32_t off = i * kCase4MaskReduceWidth;
         idx_exp.SetValue(off + 0, v);
         idx_exp.SetValue(off + 1, v);
         idx_exp.SetValue(off + 2, v);
@@ -1151,6 +1155,7 @@ class IndexAddKernel {
         idx_exp.SetValue(off + 4, v);
         idx_exp.SetValue(off + 5, v);
         idx_exp.SetValue(off + 6, v);
+        idx_exp.SetValue(off + 7, v);
       }
       for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
         const uint32_t mask_off =
@@ -1188,15 +1193,15 @@ class IndexAddKernel {
 
           for (uint32_t n = kCase4MaskReduceTile; n > 8; n >>= 1) {
             const uint32_t h = n >> 1;
-            const uint32_t elems = h * 7;
+            const uint32_t elems = h * kCase4MaskReduceWidth;
             Add(masked_i16, masked_i16, masked_i16[elems],
                 static_cast<int32_t>(elems));
             PipeBarrier<PIPE_V>();
           }
 
-          const uint32_t partial_base = axis_id * 8 * 7;
+          const uint32_t partial_base = axis_id * 8 * kCase4MaskReduceWidth;
           for (uint32_t r = 0; r < 8; ++r) {
-            const uint32_t row_off = r * 7;
+            const uint32_t row_off = r * kCase4MaskReduceWidth;
             const uint32_t part_off = partial_base + row_off;
             partial.SetValue(part_off + 0,
                              partial.GetValue(part_off + 0) +
@@ -1228,12 +1233,12 @@ class IndexAddKernel {
       PipeBarrier<PIPE_MTE2>();
       for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
         const uint32_t dst_base = axis_id * 7;
-        const uint32_t partial_base = axis_id * 8 * 7;
+        const uint32_t partial_base = axis_id * 8 * kCase4MaskReduceWidth;
         for (uint32_t w = 0; w < 7; ++w) {
           int32_t sum = static_cast<int32_t>(src_i8.GetValue(dst_base + w));
           for (uint32_t r = 0; r < 8; ++r) {
             sum += static_cast<int32_t>(
-                partial.GetValue(partial_base + r * 7 + w));
+                partial.GetValue(partial_base + r * kCase4MaskReduceWidth + w));
           }
           src_i8.SetValue(dst_base + w, static_cast<int8_t>(sum));
         }

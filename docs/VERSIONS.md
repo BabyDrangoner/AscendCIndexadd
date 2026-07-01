@@ -489,3 +489,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `90184881d1fe5e8856d7a2e74b9b1f3020e66257442fff7620d79bb5783e5f57`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: not submitted. Since v192 was full-pass but did not materially improve Case4, batch16 is likely lower upside than the next non-atomic algorithm probe.
+
+## v194 maskreduce-h16pad8
+
+- Change: replace the disabled Case4 mask-reduce prototype with a padded exact path. The shared 1024 indices are expanded once into 12 onehot masks over two 512-row tiles. Each source tile is copied into a padded 512x8 UB layout, cast to half for `Select(mask, src, 0)`, then cast to int16 for vector tree `Add` down to 8 rows, with only the final 8x7 tail accumulated by scalar code.
+- Rationale: direct int8 `Select/Add` is rejected by the AscendC backend, but half `Select` and int16 `Add` are supported. The 8-byte padded row keeps tree-add offsets aligned despite the real `inner=7`, avoiding the W=7 unaligned reduction hazard in the old prototype.
+- Package: `IndexAdd_v194_maskreduce_h16pad8.zip`
+- SHA256: `c4408d434fb18d083cff5ab28d84467dca9a9ec3115caa88b3f3d181202dbff3`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted.
