@@ -342,4 +342,5 @@ Conclusion: recovery submit succeeded and confirms the pipeline/package flow is 
 - Package: `IndexAdd_v140_case4_bucket_pack4.zip`
 - SHA256: `7fd2e335f2e79f224c0554f470343c884d5e96878e419349c355a06b8ae71d95`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
-- Submit: pending.
+- Submit: 2026-07-01 11:34:34 CST, workId `IndexAdd_v140_case4_bucket_pack4.zip`.
+- Monitor: pending as of 2026-07-01 11:34:48 CST; ranking row still points to v121's 2026-07-01 11:21:00 full-pass result.
