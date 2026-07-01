@@ -607,3 +607,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `e42ecff512dbb91643d92bcd6d116835c05121767c8d7a0e90318aa2eedc9cb7`
 - Verification: Docker build passed; top-level host/kernel source matches the zip.
 - Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
+
+## v212 gatherb-outer2-fix-bd40
+
+- Change: keep v211's corrected two-outer `Gatherb` reducer, but raise the exact int8 Case4 host block cap from 30 to 40.
+- Rationale: v211 is the correctness-fixed balanced schedule. v212 is the high-parallelism schedule for the same fixed algorithm, reducing average outer-pair groups per AIV block from 2.0 to 1.5 while duplicating shared offset construction across more blocks.
+- Package: `IndexAdd_v212_gatherb_outer2_fix_bd40.zip`
+- SHA256: `331ceb7de6ecfeea60f256aa60634aebc082ae833534c7d1dd8af0ffd8fbbd0b`
+- Verification: Docker build passed; top-level host/kernel source matches the zip.
+- Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
