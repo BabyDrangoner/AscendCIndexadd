@@ -263,15 +263,17 @@ class IndexAddKernel {
     work_hi_ = work_lo_ + per;
     if (work_hi_ > work_units) work_hi_ = work_units;
 
-    const uint32_t buf_bytes = AlignUp32(kDataBytes);
-    pipe_.InitBuffer(src_buf_, buf_bytes);
-    pipe_.InitBuffer(out_buf_, buf_bytes);
-    pipe_.InitBuffer(acc_buf_, buf_bytes);
-    pipe_.InitBuffer(src_cast_buf_, buf_bytes);
-    if (index_dtype_size_ == 8) {
-      pipe_.InitBuffer(index64_buf_, AlignUp32(kIndexTileBytes));
-    } else {
-      pipe_.InitBuffer(index32_buf_, AlignUp32(kIndexTileBytes));
+    if ASCEND_IS_AIV {
+      const uint32_t buf_bytes = AlignUp32(kDataBytes);
+      pipe_.InitBuffer(src_buf_, buf_bytes);
+      pipe_.InitBuffer(out_buf_, buf_bytes);
+      pipe_.InitBuffer(acc_buf_, buf_bytes);
+      pipe_.InitBuffer(src_cast_buf_, buf_bytes);
+      if (index_dtype_size_ == 8) {
+        pipe_.InitBuffer(index64_buf_, AlignUp32(kIndexTileBytes));
+      } else {
+        pipe_.InitBuffer(index32_buf_, AlignUp32(kIndexTileBytes));
+      }
     }
     InitCase4DenseTiling();
   }

@@ -190,6 +190,18 @@ Conclusion: invalid candidate. Because every case failed, including non-Case4 sh
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-06-30 21:10:34 CST, workId `0000019F18A72258B015AC545AD243F4`.
 
+Official result:
+
+```text
+Case1: Run failed
+Case2: Run failed
+Case3: Run failed
+Case4: Run failed
+Case5: Run failed
+```
+
+Conclusion: invalid candidate. Always registering the KFC object did not fix the all-case runtime failure, so the remaining suspects are workspace allocation for fallback shapes and/or CUBE-side AIV buffer initialization before KFC server setup.
+
 ## v129 kfc-workspace-all-m64
 
 - Change: keep v128's always-register lifecycle fix, and allocate the per-block GM-B/C user workspace for all runtime shapes instead of only the exact dense Case4 shape.
@@ -207,3 +219,12 @@ Conclusion: invalid candidate. Because every case failed, including non-Case4 sh
 - SHA256: `e04898ddbb312f44a6499acaae4042a14b3565a1a45eaa6bd42ca755e06ef768`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: not submitted yet. Submit only after v128/v129 establish that KFC path is viable.
+
+## v131 kfc-aiv-only-buffer-init
+
+- Change: keep v130's M=128/workspace-all KFC shape, but initialize VECCALC TBuf buffers only on `ASCEND_IS_AIV`.
+- Rationale: KFC CUBE/AIC side should enter the server path with minimal setup. v124/v128 may fail or hang if CUBE-side execution performs AIV-only buffer initialization before `REGIST_MATMUL_OBJ`.
+- Package: `IndexAdd_v131_kfc_aiv_only_buffer_init.zip`
+- SHA256: `08408c911101b8a6e879ab38b77bef9f48cf392c6654de2c3e6ce27cef07903a`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: not submitted yet; current HiAscend cookie is expired (`401 未登录`).
