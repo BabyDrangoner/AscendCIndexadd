@@ -534,3 +534,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `9b7e5097fce4ce4e6d05ea68f48a32dd7cfdc2c8e4317269145162accc95770a`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: submitted at `2026-07-01 20:49:26 CST` as `IndexAdd_v198_pytorch_largeindex_sync.zip`; first monitor still shows the old `2026/07/01 19:47:05` ranked result, so the v198 evaluation is pending.
+
+## v199 largeindex-outer-chunks
+
+- Change: keep v198's PyTorch large-index style exact Case4 path, but split each index row's 120 outer rows into four 30-row strided atomic chunks.
+- Rationale: v198 is the fastest command-shape candidate, but a single `blockCount=120` strided atomic write may be too aggressive for the official runtime. v199 raises the command count to about 4096 hot atomic writes, still much lower than v195's 30720-ish shape, while probing a smaller and safer strided DMA block count.
+- Package: `IndexAdd_v199_largeindex_outer_chunks.zip`
+- SHA256: `bd3054004fae6203c762e62c2e80f58cb9aefed86d3564e691882cea8f5be961`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted.

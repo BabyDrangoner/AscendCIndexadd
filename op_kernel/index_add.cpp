@@ -1265,6 +1265,7 @@ class IndexAddKernel {
     constexpr uint32_t kOuterBytes = 42;
     constexpr uint32_t kSourceOuterBytes = 1024 * 7;
     constexpr uint32_t kLocalRowStride = 32;
+    constexpr uint32_t kOuterChunk = 30;
     LocalTensor<int32_t> idx = index32_buf_.Get<int32_t>();
     LocalTensor<int8_t> buf = src_buf_.Get<int8_t>();
     LocalTensor<int32_t> sync_ub = src_cast_buf_.Get<int32_t>();
@@ -1287,16 +1288,22 @@ class IndexAddKernel {
     SetAtomicAdd<int8_t>();
     for (uint32_t j = cid; j < 1024; j += core_num) {
       const uint32_t axis_id = static_cast<uint32_t>(idx.GetValue(j));
-      DataCopyParams src_batch{static_cast<uint16_t>(outer_), 7,
-                               static_cast<uint16_t>(kSourceOuterBytes - 7),
-                               static_cast<uint16_t>(kLocalRowStride - 7)};
-      DataCopyPad(buf, source_i8_gm_[SourceOffset(0, j, 0)], src_batch, pad);
-      PipeBarrier<PIPE_MTE2>();
-      DataCopyParams dst_batch{static_cast<uint16_t>(outer_), 7,
-                               static_cast<uint16_t>(kLocalRowStride - 7),
-                               static_cast<uint16_t>(kOuterBytes - 7)};
-      DataCopyPad(output_i8_gm_[InputOffset(0, axis_id, 0)], buf, dst_batch);
-      PipeBarrier<PIPE_MTE3>();
+      for (uint32_t outer_base = 0; outer_base < outer_;
+           outer_base += kOuterChunk) {
+        const uint32_t rows = MinU32(kOuterChunk, outer_ - outer_base);
+        DataCopyParams src_batch{static_cast<uint16_t>(rows), 7,
+                                 static_cast<uint16_t>(kSourceOuterBytes - 7),
+                                 static_cast<uint16_t>(kLocalRowStride - 7)};
+        DataCopyPad(buf, source_i8_gm_[SourceOffset(outer_base, j, 0)],
+                    src_batch, pad);
+        PipeBarrier<PIPE_MTE2>();
+        DataCopyParams dst_batch{static_cast<uint16_t>(rows), 7,
+                                 static_cast<uint16_t>(kLocalRowStride - 7),
+                                 static_cast<uint16_t>(kOuterBytes - 7)};
+        DataCopyPad(output_i8_gm_[InputOffset(outer_base, axis_id, 0)], buf,
+                    dst_batch);
+        PipeBarrier<PIPE_MTE3>();
+      }
     }
     SetAtomicNone();
   }
