@@ -590,3 +590,12 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 15:13:11 CST, workId `IndexAdd_v159_pack16_bucket.zip`.
 - Official result: pending; as of 15:13 CST the ranking row still pointed to v151's `2026/07/01 14:23:54` `-1us` result.
+
+## v160 gather-float-reduce
+
+- Change: add an exact hot Case4 Gather path before v159. The path reuses the `2 x 6` bucketed index offsets, copies each 512-row source tile for one outer row, casts `int8 -> half -> float`, gathers only the matching rows for each axis/lane, then uses an aligned manual tree reduction that stops at 16 elements before scalar finalization.
+- Rationale: this is the higher-fidelity version of the external group/reduce recommendation for the small-inner Case4 shape. It avoids unsupported int8 atomic add and avoids the `WholeReduceSum/vcadd` primitive that made v137 fail globally, while keeping float accumulation so int8 exactness is not lost to half rounding.
+- Package: `IndexAdd_v160_gather_float_reduce.zip`
+- SHA256: `81f338c5beb6a1d9bb62377f90ceaa5b68a4f5d2377c5b571034bbce119ab0db`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: pending.
