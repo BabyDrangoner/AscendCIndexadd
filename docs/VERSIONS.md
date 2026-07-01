@@ -467,4 +467,5 @@ Conclusion: full pass but much slower than v121. Pack3 gives all 40 blocks usefu
 - Package: `IndexAdd_v145_case4_pack5_packed.zip`
 - SHA256: `0823c0c9558f1dec858fe9334bb9c2afb3d5a11621f5dcf7758d2dd2b144825c`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
-- Submit: pending.
+- Submit: 2026-07-01 13:01:54 CST, workId `IndexAdd_v145_case4_pack5_packed.zip`.
+- Monitor: pending as of 2026-07-01 13:02:07 CST; ranking row still points to v144's 2026-07-01 12:44:52 result.
