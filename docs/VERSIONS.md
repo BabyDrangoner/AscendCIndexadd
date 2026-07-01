@@ -468,4 +468,15 @@ Conclusion: full pass but much slower than v121. Pack3 gives all 40 blocks usefu
 - SHA256: `0823c0c9558f1dec858fe9334bb9c2afb3d5a11621f5dcf7758d2dd2b144825c`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-07-01 13:01:54 CST, workId `IndexAdd_v145_case4_pack5_packed.zip`.
-- Monitor: pending as of 2026-07-01 13:02:07 CST; ranking row still points to v144's 2026-07-01 12:44:52 result.
+- Official result:
+
+```text
+Case1: Pass, Result: 39.72
+Case2: Pass, Result: 12601.888
+Case3: Pass, Result: 60752.472
+Case4: Pass, Result: 1729313.46
+Case5: Pass, Result: 15616.524
+prof_sum: 1818324.064
+```
+
+Conclusion: full pass and better than the 12:23 v121 recovery run by 14.088us, but Case4 itself is still slower than v121. Pack5 reduced scalar dispatch groups from 30 to 24, but higher register pressure and idle block overhead appear to offset the loop-count reduction.
