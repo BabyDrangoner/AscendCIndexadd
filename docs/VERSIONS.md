@@ -514,4 +514,5 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - Package: `IndexAdd_v195_strided_atomic_outer120_b4.zip`
 - SHA256: `ec8cae4372d592402560ce5ceccb466dd7bbf11fad9f1a51cc328084c2409500`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
-- Submit: not submitted.
+- Submit: 2026-07-01 20:28:12 CST, workId `IndexAdd_v195_strided_atomic_outer120_b4.zip`.
+- Monitor: pending as of 2026-07-01 20:28:24 CST; workInfo shows v195, while the ranking row still points to the v194 fallback result from `2026/07/01 19:47:05`.
