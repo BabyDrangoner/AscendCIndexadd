@@ -1455,8 +1455,7 @@ class IndexAddKernel {
         DataCopyPad(src3, source_i8_gm_[SourceOffset(outer3, base, 0)],
                     src_copy, pad);
         PipeBarrier<PIPE_MTE2>();
-        for (uint32_t i = 0; i < count; ++i) {
-          const uint32_t src_off = i * 7;
+        uint32_t i = 0;
 #define ADD_I8P4_PACK(P, R) \
           do { \
             P##R = AddPackedI8x7(P##R, v##P); \
@@ -1472,6 +1471,109 @@ class IndexAddKernel {
             ADD_I8P4_PACK(c, R); \
             ADD_I8P4_PACK(d, R); \
           } while (0)
+        for (; i + 1 < count; i += 2) {
+          const uint32_t src_off0 = i * 7;
+          const uint32_t src_off1 = src_off0 + 7;
+          const uint64_t va0 = LoadPacked7(src0u, src_off0);
+          const uint64_t vb0 = LoadPacked7(src1u, src_off0);
+          const uint64_t vc0 = LoadPacked7(src2u, src_off0);
+          const uint64_t vd0 = LoadPacked7(src3u, src_off0);
+          const uint64_t va1 = LoadPacked7(src0u, src_off1);
+          const uint64_t vb1 = LoadPacked7(src1u, src_off1);
+          const uint64_t vc1 = LoadPacked7(src2u, src_off1);
+          const uint64_t vd1 = LoadPacked7(src3u, src_off1);
+          const uint32_t r0 = static_cast<uint32_t>(
+              idx.GetValue(cached_index ? base + i : i));
+          const uint32_t r1 = static_cast<uint32_t>(
+              idx.GetValue(cached_index ? base + i + 1 : i + 1));
+#define ADD_I8P4_PACK_SRC(P, R, S) \
+          do { \
+            P##R = AddPackedI8x7(P##R, v##P##S); \
+          } while (0)
+#define ADD_I8P4_ROW4_SRC(R, S) \
+          do { \
+            ADD_I8P4_PACK_SRC(a, R, S); \
+            ADD_I8P4_PACK_SRC(b, R, S); \
+            ADD_I8P4_PACK_SRC(c, R, S); \
+            ADD_I8P4_PACK_SRC(d, R, S); \
+          } while (0)
+#define ADD_I8P4_PAIR(R0, R1) \
+          do { \
+            ADD_I8P4_ROW4_SRC(R0, 0); \
+            ADD_I8P4_ROW4_SRC(R1, 1); \
+          } while (0)
+          if (r0 < 6 && r1 < 6) {
+            switch (r0 * 6 + r1) {
+              case 0: ADD_I8P4_PAIR(0, 0); break;
+              case 1: ADD_I8P4_PAIR(0, 1); break;
+              case 2: ADD_I8P4_PAIR(0, 2); break;
+              case 3: ADD_I8P4_PAIR(0, 3); break;
+              case 4: ADD_I8P4_PAIR(0, 4); break;
+              case 5: ADD_I8P4_PAIR(0, 5); break;
+              case 6: ADD_I8P4_PAIR(1, 0); break;
+              case 7: ADD_I8P4_PAIR(1, 1); break;
+              case 8: ADD_I8P4_PAIR(1, 2); break;
+              case 9: ADD_I8P4_PAIR(1, 3); break;
+              case 10: ADD_I8P4_PAIR(1, 4); break;
+              case 11: ADD_I8P4_PAIR(1, 5); break;
+              case 12: ADD_I8P4_PAIR(2, 0); break;
+              case 13: ADD_I8P4_PAIR(2, 1); break;
+              case 14: ADD_I8P4_PAIR(2, 2); break;
+              case 15: ADD_I8P4_PAIR(2, 3); break;
+              case 16: ADD_I8P4_PAIR(2, 4); break;
+              case 17: ADD_I8P4_PAIR(2, 5); break;
+              case 18: ADD_I8P4_PAIR(3, 0); break;
+              case 19: ADD_I8P4_PAIR(3, 1); break;
+              case 20: ADD_I8P4_PAIR(3, 2); break;
+              case 21: ADD_I8P4_PAIR(3, 3); break;
+              case 22: ADD_I8P4_PAIR(3, 4); break;
+              case 23: ADD_I8P4_PAIR(3, 5); break;
+              case 24: ADD_I8P4_PAIR(4, 0); break;
+              case 25: ADD_I8P4_PAIR(4, 1); break;
+              case 26: ADD_I8P4_PAIR(4, 2); break;
+              case 27: ADD_I8P4_PAIR(4, 3); break;
+              case 28: ADD_I8P4_PAIR(4, 4); break;
+              case 29: ADD_I8P4_PAIR(4, 5); break;
+              case 30: ADD_I8P4_PAIR(5, 0); break;
+              case 31: ADD_I8P4_PAIR(5, 1); break;
+              case 32: ADD_I8P4_PAIR(5, 2); break;
+              case 33: ADD_I8P4_PAIR(5, 3); break;
+              case 34: ADD_I8P4_PAIR(5, 4); break;
+              case 35: ADD_I8P4_PAIR(5, 5); break;
+              default: break;
+            }
+          } else {
+            {
+              const uint32_t src_off = src_off0;
+              switch (r0) {
+                case 0: ADD_I8P4_ROW4(0); break;
+                case 1: ADD_I8P4_ROW4(1); break;
+                case 2: ADD_I8P4_ROW4(2); break;
+                case 3: ADD_I8P4_ROW4(3); break;
+                case 4: ADD_I8P4_ROW4(4); break;
+                case 5: ADD_I8P4_ROW4(5); break;
+                default: break;
+              }
+            }
+            {
+              const uint32_t src_off = src_off1;
+              switch (r1) {
+                case 0: ADD_I8P4_ROW4(0); break;
+                case 1: ADD_I8P4_ROW4(1); break;
+                case 2: ADD_I8P4_ROW4(2); break;
+                case 3: ADD_I8P4_ROW4(3); break;
+                case 4: ADD_I8P4_ROW4(4); break;
+                case 5: ADD_I8P4_ROW4(5); break;
+                default: break;
+              }
+            }
+          }
+#undef ADD_I8P4_PAIR
+#undef ADD_I8P4_ROW4_SRC
+#undef ADD_I8P4_PACK_SRC
+        }
+        if (i < count) {
+          const uint32_t src_off = i * 7;
           switch (static_cast<uint32_t>(
               idx.GetValue(cached_index ? base + i : i))) {
             case 0: ADD_I8P4_ROW4(0); break;
@@ -1482,9 +1584,9 @@ class IndexAddKernel {
             case 5: ADD_I8P4_ROW4(5); break;
             default: break;
           }
+        }
 #undef ADD_I8P4_ROW4
 #undef ADD_I8P4_PACK
-        }
       }
 
 #define STORE_I8P4_ACC(P, R) \

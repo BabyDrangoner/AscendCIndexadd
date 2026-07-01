@@ -427,3 +427,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `47af783c8f9ad945af7b664a712c7c8884a9bbf2e26fff71e245fb53f05a6f93`
 - Submit: 2026-07-01 12:23:45 CST, workId `IndexAdd_v121_pack4_packed_cached.zip`.
 - Monitor: pending as of 2026-07-01 12:23:58 CST; ranking row still points to v143's 2026-07-01 12:10:54 result.
+
+## v188 pack4-pair2
+
+- Change: start again from the stable v121 Pack4 source-order kernel and change only the exact int8 Case4 hot loop. The loop now processes two consecutive index rows per iteration, preloads both packed 7-byte source rows for four outer values, and dispatches with one `idx0 * 6 + idx1` switch instead of two separate 6-way switches.
+- Rationale: v150's Pack16 pair2 result mixed pair dispatch with high Pack16 register pressure. This isolates the pair-code idea on the lean v121 Pack4 baseline to test whether branch/index dispatch is still measurable without changing DMA shape or accumulator count.
+- Package: `IndexAdd_v188_pack4_pair2.zip`
+- SHA256: `2f5e8551248f86675d50fbf28e314a767b307069f25945783fc432e6e7b61da4`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted; wait for v186 official result or explicit overwrite decision.
