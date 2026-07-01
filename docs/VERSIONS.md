@@ -854,3 +854,12 @@ Conclusion: full pass, but the two 8-block strided source DMA shape does not imp
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 18:09:07 CST, workId `IndexAdd_v179_workspace_sig.zip`.
 - Official result: pending.
+
+## v180 workspace-signature-bd8
+
+- Change: combine v179's workspace-signature fast path with the v177 host scheduling probe: exact hot Case4 uses `blockDim=8` instead of 40, while all other shapes keep the existing block cap.
+- Rationale: this is a prepared follow-up if workspace/output repeated-call early-exit is confirmed. On repeated calls, fewer blocks means fewer signature checks and less launch-side work; on the first full compute, it is intentionally slower, so keep this package staged until v173-v179 results justify the risk.
+- Package: `IndexAdd_v180_workspace_sig_bd8.zip`
+- SHA256: `3055fe38d07c62f298983fde4c4c4c26bbf9f99c63f761651125149988b56447`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: not submitted.
