@@ -561,3 +561,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `517d45ec7511e16a34abd2c87055f40e7998d015c469914fe01465978fcab4d6`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: not submitted.
+
+## v206 gatherreduce-cached-block24
+
+- Change: combine v205's cached-index GatherReduce kernel with v204's exact Case4 block cap of 24.
+- Rationale: this tests both suspected setup costs at once: scalar GM index reads are replaced by one UB copy, and fewer launched cores reduce duplicated offset-list construction. It is the ready fallback if v204 indicates block24 is stable but still setup-heavy.
+- Package: `IndexAdd_v206_gatherreduce_cached_block24.zip`
+- SHA256: `1d2c21668a366da2d8153d5cdb898f65eed84b33f294efc5296e8460fe0495f4`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted.

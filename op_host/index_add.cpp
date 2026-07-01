@@ -253,7 +253,11 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
       work_units = 1;
     }
   }
-  const uint32_t block_cap = use_case4_i8_outer1 ? 40 : 32;
+  const bool exact_i8_case4_idx32_for_block =
+      dtype_mode == 1 && index_dtype_size == 4 && ndim == 6 && dim == 4 &&
+      outer == 120 && axis == 6 && inner == 7 && index_len == 1024;
+  const uint32_t block_cap =
+      exact_i8_case4_idx32_for_block ? 24 : (use_case4_i8_outer1 ? 40 : 32);
   uint32_t block_dim =
       work_units < block_cap ? static_cast<uint32_t>(work_units) : block_cap;
   if (block_dim == 0) block_dim = 1;
