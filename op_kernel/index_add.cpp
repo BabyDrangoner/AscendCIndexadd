@@ -178,7 +178,7 @@ class IndexAddKernel {
       return;
     }
     if (UseCase4Int8StridedAtomicBatchPath()) {
-      ProcessCase4StridedAtomicBatch16Int8();
+      ProcessCase4StridedAtomicBatch4Int8();
       return;
     }
     if (UseCase4Int8Pack4Path()) {
@@ -303,7 +303,7 @@ class IndexAddKernel {
   __aicore__ inline bool UseCase4Int8StridedAtomicBatchPath() const {
     return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
            ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
-           index_len_ == 1024 && outer_ == 8192;
+           index_len_ == 1024 && outer_ == 120;
   }
 
   __aicore__ inline bool UseCase4Int8Pack4Path() const {
@@ -1249,8 +1249,8 @@ class IndexAddKernel {
     }
   }
 
-  __aicore__ inline void ProcessCase4StridedAtomicBatch16Int8() {
-    constexpr uint32_t kBatchRows = 16;
+  __aicore__ inline void ProcessCase4StridedAtomicBatch4Int8() {
+    constexpr uint32_t kBatchRows = 4;
     constexpr uint32_t kOuterBytes = 42;
     constexpr uint32_t kSourceOuterBytes = 1024 * 7;
     constexpr uint32_t kLocalRowStride = 32;
@@ -1261,6 +1261,9 @@ class IndexAddKernel {
     const uint32_t cid = GetBlockIdx();
     const uint32_t batches = (outer_ + kBatchRows - 1) / kBatchRows;
 
+    if (cid >= batches) {
+      return;
+    }
     RawCopyIndexTile(idx, 0, 1024);
 
     for (uint32_t batch = cid; batch < batches; batch += core_num) {

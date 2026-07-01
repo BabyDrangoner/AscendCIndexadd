@@ -506,3 +506,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
   - Case5: 15619.984us
   - prof_sum: 1818241.364us
 - Conclusion: full pass, but this result should be treated as a fallback Pack4 result, not a valid mask-reduce measurement. Rechecking host tiling shows Case4 shape `(2,3,4,5,6,7)` with `dim=4` has `outer=120`; the v194 exact guard used `outer_ == 8192`, so the new mask-reduce branch did not execute. Next candidates must use `outer_ == 120` to actually hit Case4.
+
+## v195 strided-atomic-outer120-b4
+
+- Change: retarget the strided atomic Case4 path to the real hidden/public Case4 tiling: `outer=120`, `axis=6`, `inner=7`, `index_len=1024`. The hot path batches 4 outer rows per command, so 30 active batches map cleanly to 30 AIV cores. Idle cores return before copying the shared index tile. Host tiling uses 30 work units for this exact Case4 instead of launching 40 blocks.
+- Rationale: v192/v193 used `outer_ == 8192`, so the new strided atomic branch never executed and official results were fallback Pack4. Batch4 preserves Pack4's parallel shape while testing whether strided source/output DMA plus int8 atomic can remove most scalar packed accumulation.
+- Package: `IndexAdd_v195_strided_atomic_outer120_b4.zip`
+- SHA256: `ec8cae4372d592402560ce5ceccb466dd7bbf11fad9f1a51cc328084c2409500`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted.

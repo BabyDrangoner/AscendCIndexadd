@@ -188,7 +188,11 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
             : 32 / GcdU64(inner1_row_bytes & 31, 32);
     work_units = (static_cast<uint64_t>(outer) + row_group - 1) / row_group;
   } else if (use_case4_i8_outer1) {
-    work_units = outer;
+    const bool exact_i8_case4_idx32 =
+        dtype_mode == 1 && index_dtype_size == 4 && ndim == 6 && dim == 4 &&
+        outer == 120 && axis == 6 && inner == 7 && index_len == 1024;
+    work_units = exact_i8_case4_idx32 ? ((static_cast<uint64_t>(outer) + 3) / 4)
+                                      : outer;
   } else if (use_case4_i8_aligned_rows || use_case4_hbf16_aligned_rows) {
     work_units =
         (static_cast<uint64_t>(outer) * axis + kWideGroupRows - 1) /
