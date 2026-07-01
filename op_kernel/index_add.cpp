@@ -178,7 +178,7 @@ class IndexAddKernel {
       return;
     }
     if (UseCase4Int8StridedAtomicBatchPath()) {
-      ProcessCase4StridedAtomicBatch4Int8();
+      ProcessCase4StridedAtomicBatch8Int8();
       return;
     }
     if (UseCase4Int8Pack4Path()) {
@@ -1249,8 +1249,8 @@ class IndexAddKernel {
     }
   }
 
-  __aicore__ inline void ProcessCase4StridedAtomicBatch4Int8() {
-    constexpr uint32_t kBatchRows = 4;
+  __aicore__ inline void ProcessCase4StridedAtomicBatch8Int8() {
+    constexpr uint32_t kBatchRows = 8;
     constexpr uint32_t kOuterBytes = 42;
     constexpr uint32_t kSourceOuterBytes = 1024 * 7;
     constexpr uint32_t kLocalRowStride = 32;

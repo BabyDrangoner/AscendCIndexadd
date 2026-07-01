@@ -516,3 +516,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: 2026-07-01 20:28:12 CST, workId `IndexAdd_v195_strided_atomic_outer120_b4.zip`.
 - Monitor: pending as of 2026-07-01 20:28:24 CST; workInfo shows v195, while the ranking row still points to the v194 fallback result from `2026/07/01 19:47:05`.
+
+## v196 strided-atomic-outer120-b8
+
+- Change: keep v195's corrected `outer=120` strided atomic path, but batch 8 outer rows per command and set exact Case4 host work units to 15.
+- Rationale: v195 batch4 preserves 30-core parallelism; batch8 halves the number of strided source/atomic output commands while still using 15 AIV cores. This A/B helps decide whether Case4 is now limited more by command count or by outer parallelism.
+- Package: `IndexAdd_v196_strided_atomic_outer120_b8.zip`
+- SHA256: `a566de953c659ca1c2d34c35d282dc92e20dc985c16d2b90ee3afcd046a5e621`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted; wait for v195 unless an immediate overwrite is desired.
