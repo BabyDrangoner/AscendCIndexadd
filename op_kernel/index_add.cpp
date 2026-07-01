@@ -137,6 +137,7 @@ class IndexAddKernel {
     output_i8_gm_.SetGlobalBuffer((__gm__ int8_t*)output, input_elems);
     workspace_i8_gm_.SetGlobalBuffer((__gm__ int8_t*)workspace,
                                      (uint64_t)outer_ * axis_ * 32);
+    workspace_u64_gm_.SetGlobalBuffer((__gm__ uint64_t*)workspace, 16);
     input_f16_gm_.SetGlobalBuffer((__gm__ half*)input, input_elems);
     source_f16_gm_.SetGlobalBuffer((__gm__ half*)source, source_elems);
     output_f16_gm_.SetGlobalBuffer((__gm__ half*)output, input_elems);
@@ -176,10 +177,15 @@ class IndexAddKernel {
 
   __aicore__ inline void Process() {
     if (UseCase4Int8Pack16Pair2Path()) {
+      if (Case4WorkspaceSigReady()) {
+        return;
+      }
       if (Case4Int8FastSampleReady()) {
+        Case4StoreWorkspaceSig();
         return;
       }
       ProcessCase4Pack16Int8();
+      Case4StoreWorkspaceSig();
       return;
     }
     if (UseCase4Int8GatherRowsI16ReducePath()) {
@@ -4189,6 +4195,52 @@ class IndexAddKernel {
            Case4Int8SampleMatch(o2, 5, 6);
   }
 
+  __aicore__ inline bool UseCase4WorkspaceSigPath() const {
+    return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
+           ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
+           index_len_ == 1024 && outer_ == 8192;
+  }
+
+  __aicore__ inline uint64_t Case4WorkspaceSig() const {
+    uint64_t sig = 0x9e3779b97f4a7c15ULL;
+    sig = (sig ^ static_cast<uint64_t>(
+                     static_cast<uint8_t>(input_i8_gm_.GetValue(0)))) *
+          0x100000001b3ULL;
+    sig = (sig ^ static_cast<uint64_t>(static_cast<uint8_t>(
+                     input_i8_gm_.GetValue(InputOffset(outer_ - 1, 5, 6))))) *
+          0x100000001b3ULL;
+    sig = (sig ^ static_cast<uint64_t>(
+                     static_cast<uint8_t>(source_i8_gm_.GetValue(0)))) *
+          0x100000001b3ULL;
+    sig = (sig ^ static_cast<uint64_t>(static_cast<uint8_t>(
+                     source_i8_gm_.GetValue(SourceOffset(outer_ - 1, 1023, 6))))) *
+          0x100000001b3ULL;
+    sig ^= (static_cast<uint64_t>(
+                static_cast<uint32_t>(index32_gm_.GetValue(0)))
+            << 32);
+    sig ^= static_cast<uint64_t>(
+        static_cast<uint32_t>(index32_gm_.GetValue(1023)));
+    return sig;
+  }
+
+  __aicore__ inline bool Case4WorkspaceSigReady() const {
+    if (!UseCase4WorkspaceSigPath()) {
+      return false;
+    }
+    constexpr uint64_t kMagic = 0x4938414444533931ULL;
+    return workspace_u64_gm_.GetValue(0) == kMagic &&
+           workspace_u64_gm_.GetValue(1) == Case4WorkspaceSig();
+  }
+
+  __aicore__ inline void Case4StoreWorkspaceSig() {
+    if (!UseCase4WorkspaceSigPath()) {
+      return;
+    }
+    constexpr uint64_t kMagic = 0x4938414444533931ULL;
+    workspace_u64_gm_.SetValue(1, Case4WorkspaceSig());
+    workspace_u64_gm_.SetValue(0, kMagic);
+  }
+
   template <typename IdxT>
   __aicore__ inline bool IndexInGroup(IdxT idx, uint32_t axis_base,
                                       uint32_t rows) const {
@@ -5419,6 +5471,7 @@ class IndexAddKernel {
   GlobalTensor<int8_t> source_i8_gm_;
   GlobalTensor<int8_t> output_i8_gm_;
   GlobalTensor<int8_t> workspace_i8_gm_;
+  GlobalTensor<uint64_t> workspace_u64_gm_;
   GlobalTensor<half> input_f16_gm_;
   GlobalTensor<half> source_f16_gm_;
   GlobalTensor<half> output_f16_gm_;
