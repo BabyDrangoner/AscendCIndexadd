@@ -759,4 +759,5 @@ Conclusion: full pass, but no improvement over v162/v148. Moving `SetAtomicAdd<i
 - Package: `IndexAdd_v172_pack16_src8_dma.zip`
 - SHA256: `5fd07584ca3603d06dcf089a1700aca48e4718655cccc6faf494bdf1651c3a89`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
-- Submit: not submitted yet; wait for v169's official result so the platform row is not overwritten.
+- Submit: 2026-07-01 17:11:43 CST, workId `IndexAdd_v172_pack16_src8_dma.zip`.
+- Official result: pending.
