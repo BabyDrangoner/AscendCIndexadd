@@ -733,3 +733,13 @@ Conclusion: full pass, but no improvement over v162/v148. Moving `SetAtomicAdd<i
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source; `libcust_opapi.so` exports `aclnnIndexAddGetWorkspaceSize` and `aclnnIndexAdd`.
 - Submit: 2026-07-01 16:37:15 CST, workId `IndexAdd_v168_opapi_builtin_forward.zip`.
 - Official result: pending; as of 16:37 CST the ranking row still pointed to v164's `2026/07/01 15:47:37` result.
+
+## v169 pack16-bulk-dma
+
+- Change: restore the exact int8 Case4 Pack16 pair2 path ahead of the later gather/atomic experiments, restore the normal generated op_api instead of v168's built-in-forward shim, then coarsen the Pack16 DMA shape. Each group now copies 16 contiguous input outer rows in one 672-byte `DataCopyPad`, copies source tiles as four 4-block strided `DataCopyPad` calls instead of sixteen separate calls, and writes the 16 contiguous output rows back in one 672-byte `DataCopyPad`.
+- Rationale: v148/v150 showed packed scalar accumulation is the best confirmed correct arithmetic path, while profiling still suggests excessive scalar/MTE command overhead. This candidate keeps the same byte-wise wraparound accumulation but cuts Pack16 per-group DMA command count from roughly 64 to roughly 10, testing whether small-copy launch overhead is the missing factor.
+- Package: `IndexAdd_v169_pack16_bulk_dma.zip`
+- SHA256: `fa7d3e66f46f629cf550f46f3095c54d3a77fa93885dc716bf46acf74a2341f1`
+- Verification: Docker build passed with normal generated op_api; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source; zip does not contain the v168 `op_host/fast/aclnn_index_add.cpp` shim.
+- Submit: pending.
+- Official result: pending.

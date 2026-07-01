@@ -54,22 +54,14 @@ set_target_properties(cust_optiling PROPERTIES OUTPUT_NAME
 
 file(GLOB aclnn_src ${ASCEND_AUTOGEN_PATH}/aclnn_*.cpp)
 file(GLOB aclnn_inc ${ASCEND_AUTOGEN_PATH}/aclnn_*.h)
-list(FILTER aclnn_src EXCLUDE REGEX ".*/aclnn_index_add\\.cpp$")
-list(APPEND aclnn_src ${CMAKE_CURRENT_SOURCE_DIR}/fast/aclnn_index_add.cpp)
 add_library(cust_opapi SHARED ${aclnn_src})
-target_include_directories(cust_opapi PRIVATE
-        ${ASCEND_AUTOGEN_PATH}
-        ${ASCEND_CANN_PACKAGE_PATH}/include
-        ${ASCEND_CANN_PACKAGE_PATH}/aarch64-linux/include
-)
-target_compile_options(cust_opapi PRIVATE -std=c++14)
 if(ENABLE_CROSS_COMPILE)
     target_link_directories(cust_opapi PRIVATE
                             ${CMAKE_COMPILE_COMPILER_LIBRARY}
                             ${CMAKE_COMPILE_RUNTIME_LIBRARY}
     )
 endif()
-target_link_libraries(cust_opapi PRIVATE intf_pub ascendcl nnopbase dl)
+target_link_libraries(cust_opapi PRIVATE intf_pub ascendcl nnopbase)
 
 add_custom_target(optiling_compat ALL
                   COMMAND ln -sf lib/linux/${CMAKE_SYSTEM_PROCESSOR}/$<TARGET_FILE_NAME:cust_optiling>
