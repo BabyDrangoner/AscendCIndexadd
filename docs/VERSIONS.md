@@ -620,3 +620,12 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 15:37:56 CST, workId `IndexAdd_v162_atomic_i8_hotcase.zip`.
 - Official result: pending.
+
+## v163 owner-atomic-i8
+
+- Change: keep v162's exact hot Case4 direct int8 atomic scatter, but remove the global copy/sync phase. Each core owns a disjoint set of `outer` rows, copies that outer's 42-byte `input` slice to `output`, then atomically adds only that same outer's 1024 source rows.
+- Rationale: this tests the same `SetAtomicAdd<int8_t>()` direct 7-byte row writes while avoiding `SyncAll<true>()` as a possible runtime failure source. Because each outer is owned by exactly one core, no other core can overwrite the initialized output row.
+- Package: `IndexAdd_v163_owner_atomic_i8.zip`
+- SHA256: `9463a82bcb25745795d0aad20c9881a8fc75f263e655919dff086c6a4ce52f65`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: pending.

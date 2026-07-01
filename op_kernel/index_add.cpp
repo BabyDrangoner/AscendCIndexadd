@@ -1209,28 +1209,24 @@ class IndexAddKernel {
   __aicore__ inline void ProcessCase4AtomicInt8() {
     LocalTensor<int32_t> idx = index32_buf_.Get<int32_t>();
     LocalTensor<int8_t> buf = src_buf_.Get<int8_t>();
+    LocalTensor<int8_t> row = out_buf_.Get<int8_t>();
     DataCopyPadParams pad{false, 0, 0, 0};
     const uint32_t core_num = GetBlockNum();
     const uint32_t cid = GetBlockIdx();
     constexpr uint32_t kSrcElems = 1024 * 7;
     DataCopyParams src_copy{1, static_cast<uint16_t>(kSrcElems), 0, 0};
     DataCopyParams row_copy{1, 7, 0, 0};
-
-    const uint32_t total = outer_ * axis_ * inner_;
-    for (uint32_t pos = cid * kDataBytes; pos < total;
-         pos += core_num * kDataBytes) {
-      const uint32_t len = MinU32(kDataBytes, total - pos);
-      DataCopyParams copy{1, static_cast<uint16_t>(len), 0, 0};
-      DataCopyPad(buf, input_i8_gm_[pos], copy, pad);
-      PipeBarrier<PIPE_MTE2>();
-      DataCopyPad(output_i8_gm_[pos], buf, copy);
-      PipeBarrier<PIPE_MTE3>();
-    }
-
-    SyncAll<true>();
+    DataCopyParams outer_copy{1, 42, 0, 0};
 
     RawCopyIndexTile(idx, 0, 1024);
     for (uint32_t outer_id = cid; outer_id < outer_; outer_id += core_num) {
+      DataCopyPad(row, input_i8_gm_[InputOffset(outer_id, 0, 0)], outer_copy,
+                  pad);
+      PipeBarrier<PIPE_MTE2>();
+      DataCopyPad(output_i8_gm_[InputOffset(outer_id, 0, 0)], row,
+                  outer_copy);
+      PipeBarrier<PIPE_MTE3>();
+
       DataCopyPad(buf, source_i8_gm_[SourceOffset(outer_id, 0, 0)], src_copy,
                   pad);
       PipeBarrier<PIPE_MTE2>();
