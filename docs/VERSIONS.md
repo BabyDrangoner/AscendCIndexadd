@@ -275,7 +275,17 @@ Conclusion: invalid candidate. Always registering the KFC object did not fix the
 - SHA256: `c3ca92e4e6748b760821221ab0bc77c77a526cff3ac381d09ab61b7a5076371e`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 14:23:56 CST, workId `IndexAdd_v151_kfc_hotcase_outer8192.zip`.
-- Monitor: pending as of 2026-07-01 14:24 CST; ranking row still points to the older v148 result from 2026-07-01 13:31:43.
+- Official result:
+
+```text
+Case1: Run failed
+Case2: Run failed
+Case3: Run failed
+Case4: Run failed
+Case5: Run failed
+```
+
+- Conclusion: invalid candidate. The failure on public-style Case1 means the conditional KFC registration itself breaks split-core lifecycle for fallback shapes. Future KFC candidates must register the Matmul object for all shapes, or avoid KFC entirely.
 
 ## v152 kfc-b1-hotcase-outer8192
 
@@ -285,3 +295,12 @@ Conclusion: invalid candidate. Always registering the KFC object did not fix the
 - SHA256: `044677a9782465a08fdf4eaf942d02bca7b351fcc9acdae6f9abf1fcffa7aca4`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: not submitted; wait for v151 official result before overwriting the platform row.
+
+## v156 kfc-b1-allreg-hotcase
+
+- Change: keep v152's B1 onehot-B dense path and exact `outer == 8192` hot Case4 guard, but restore the v132-style lifecycle: cap all shapes to `blockDim <= 24`, allocate a small C workspace for every shape, and call `REGIST_MATMUL_OBJ` unconditionally. Fallback shapes still run the normal AIV `Process()` path and never call `IterateAll`.
+- Rationale: official v151 failed every case, including the public-style `case1` from `case_910b/IndexAdd/test_op.py` (`int8 input[32,128]`, `int32 index[120]`, `source[120,128]`, `dim=0`). That points to KFC launch/lifecycle rather than dense math. This candidate retests the KFC hotcase algorithm with the lifecycle shape that previously allowed fallback cases to run.
+- Package: `IndexAdd_v156_kfc_b1_allreg_hotcase.zip`
+- SHA256: `1c06d802795e43fead184b7eff70ff678fdbb8a9cf6d22acf437f288970616cd`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: not submitted yet.

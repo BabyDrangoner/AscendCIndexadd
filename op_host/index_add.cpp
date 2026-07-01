@@ -257,18 +257,15 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
       work_units = 1;
     }
   }
-  const uint32_t block_cap = use_case4_i8_dense_gma ? 24 :
-                             (use_case4_i8_outer1 ? 40 : 32);
+  const uint32_t block_cap = 24;
   uint32_t block_dim =
       work_units < block_cap ? static_cast<uint32_t>(work_units) : block_cap;
   if (block_dim == 0) block_dim = 1;
   context->SetBlockDim(block_dim);
 
   size_t* workspace = context->GetWorkspaceSizes(1);
-  workspace[0] = use_case4_i8_dense_gma
-                     ? static_cast<size_t>(block_dim) *
-                           (32 * 16 * sizeof(int32_t))
-                     : 0;
+  workspace[0] = static_cast<size_t>(block_dim) *
+                 (32 * 16 * sizeof(int32_t));
 
   tiling.SaveToBuffer(context->GetRawTilingData()->GetData(),
                       context->GetRawTilingData()->GetCapacity());

@@ -242,13 +242,11 @@ class IndexAddKernel {
 
     index32_gm_.SetGlobalBuffer((__gm__ int32_t*)index, index_len_);
     index64_gm_.SetGlobalBuffer((__gm__ int64_t*)index, index_len_);
-    if (UseCase4DenseGmAPath()) {
-      GM_ADDR user_workspace = GetUserWorkspace(workspace);
-      const uint64_t c_elems =
-          (uint64_t)GetBlockNum() * kCase4DenseM * kCase4DenseN;
-      dense_c_gm_.SetGlobalBuffer(
-          (__gm__ int32_t*)user_workspace, c_elems);
-    }
+    GM_ADDR user_workspace = GetUserWorkspace(workspace);
+    const uint64_t c_elems =
+        (uint64_t)GetBlockNum() * kCase4DenseM * kCase4DenseN;
+    dense_c_gm_.SetGlobalBuffer(
+        (__gm__ int32_t*)user_workspace, c_elems);
 
     const uint32_t rows = outer_ * axis_;
     const uint32_t work_units = rows * inner_tiles_;
@@ -4159,14 +4157,8 @@ extern "C" __global__ __aicore__ void index_add(
   GET_TILING_DATA(td, tiling);
   IndexAddKernel op;
   op.Init(input, index, source, workspace, output, &td);
-  if (op.UseCase4DenseGmAPath()) {
-    REGIST_MATMUL_OBJ(op.Pipe(), workspace, op.DenseMm(), op.DenseTiling());
-    if ASCEND_IS_AIV {
-      op.Process();
-    }
-  } else {
-    if ASCEND_IS_AIV {
-      op.Process();
-    }
+  REGIST_MATMUL_OBJ(op.Pipe(), workspace, op.DenseMm(), op.DenseTiling());
+  if ASCEND_IS_AIV {
+    op.Process();
   }
 }
