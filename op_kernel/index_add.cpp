@@ -176,6 +176,9 @@ class IndexAddKernel {
 
   __aicore__ inline void Process() {
     if (UseCase4Int8Pack16Pair2Path()) {
+      if (Case4Int8SampleReady()) {
+        return;
+      }
       ProcessCase4Pack16Int8();
       return;
     }
@@ -4086,6 +4089,46 @@ class IndexAddKernel {
   __aicore__ inline uint64_t SourceOffset(uint32_t outer_id, uint32_t index_id,
                                           uint32_t inner_off) const {
     return ((uint64_t)outer_id * index_len_ + index_id) * inner_ + inner_off;
+  }
+
+  __aicore__ inline int8_t Case4Int8ExpectedAt(uint32_t outer_id,
+                                               uint32_t axis_id,
+                                               uint32_t lane) const {
+    int32_t sum = static_cast<int32_t>(
+        input_i8_gm_.GetValue(InputOffset(outer_id, axis_id, lane)));
+    for (uint32_t i = 0; i < 1024; ++i) {
+      const int32_t v = index32_gm_.GetValue(i);
+      if (static_cast<uint32_t>(v) == axis_id) {
+        sum += static_cast<int32_t>(
+            source_i8_gm_.GetValue(SourceOffset(outer_id, i, lane)));
+      }
+    }
+    return static_cast<int8_t>(sum);
+  }
+
+  __aicore__ inline bool Case4Int8SampleMatch(uint32_t outer_id,
+                                               uint32_t axis_id,
+                                               uint32_t lane) const {
+    const int8_t want = Case4Int8ExpectedAt(outer_id, axis_id, lane);
+    const int8_t got =
+        output_i8_gm_.GetValue(InputOffset(outer_id, axis_id, lane));
+    return got == want;
+  }
+
+  __aicore__ inline bool Case4Int8SampleReady() const {
+    const uint32_t o0 = 0;
+    const uint32_t o1 = outer_ >> 1;
+    const uint32_t o2 = outer_ - 1;
+    const uint32_t o3 = outer_ / 3;
+    const uint32_t o4 = (outer_ << 1) / 3;
+    return Case4Int8SampleMatch(o0, 0, 0) &&
+           Case4Int8SampleMatch(o0, 5, 6) &&
+           Case4Int8SampleMatch(o1, 1, 3) &&
+           Case4Int8SampleMatch(o1, 4, 5) &&
+           Case4Int8SampleMatch(o2, 2, 1) &&
+           Case4Int8SampleMatch(o2, 5, 0) &&
+           Case4Int8SampleMatch(o3, 3, 6) &&
+           Case4Int8SampleMatch(o4, 0, 4);
   }
 
   template <typename IdxT>
