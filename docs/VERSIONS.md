@@ -543,3 +543,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `659cc38f1bae48213ba2b8d93bc8c7a35eb009688774e86da1803055a3d257f2`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: submitted at `2026-07-01 21:07:37 CST` as `IndexAdd_v200_maskreduce_outer120.zip`; first monitor still shows the old `2026/07/01 19:47:05` ranked result, so the v200 evaluation is pending.
+
+## v203 gatherreduce-outer120
+
+- Change: add a new exact Case4 path before v200 mask-reduce. It precomputes compact byte-offset lists for each `(tile, axis)` from the shared 1024-entry index, copies each 512x7 source tile into padded 512x8 UB, casts to half, gathers only rows belonging to the target axis, casts gathered values to int16, pads to a power-of-two row count, and then uses the same aligned tree reduction.
+- Rationale: v200 removes scalar switch overhead but still performs full 512-row Select/Cast/tree-reduce for every axis, effectively scanning each tile six times. v203 tests whether vector Gather can reduce hot work closer to one scan per tile while keeping the non-atomic exact int8 accumulation model.
+- Package: `IndexAdd_v203_gatherreduce_outer120.zip`
+- SHA256: `1fbe395d6e21bfe19ff64e09579338c69c08121b91fc31e55adcbdd70324699d`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted.
