@@ -741,5 +741,5 @@ Conclusion: full pass, but no improvement over v162/v148. Moving `SetAtomicAdd<i
 - Package: `IndexAdd_v169_pack16_bulk_dma.zip`
 - SHA256: `fa7d3e66f46f629cf550f46f3095c54d3a77fa93885dc716bf46acf74a2341f1`
 - Verification: Docker build passed with normal generated op_api; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source; zip does not contain the v168 `op_host/fast/aclnn_index_add.cpp` shim.
-- Submit: pending.
-- Official result: pending.
+- Submit: 2026-07-01 16:47:26 CST, workId `IndexAdd_v169_pack16_bulk_dma.zip`.
+- Official result: pending; as of 16:47 CST the ranking row still pointed to v164's `2026/07/01 15:47:37` result.
