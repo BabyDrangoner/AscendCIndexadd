@@ -385,4 +385,15 @@ Conclusion: full pass and recovers most of v140's regression, but is still 47.92
 - SHA256: `063311e54cefb77da8c938d4e96a1d98cd211c6801419f91cba0dc181396c16d`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-07-01 11:55:56 CST, workId `IndexAdd_v142_pack4_blockdim_groups.zip`.
-- Monitor: pending as of 2026-07-01 11:56:07 CST; ranking row still points to v141's 2026-07-01 11:44:57 result.
+- Official result:
+
+```text
+Case1: Pass, Result: 43.992
+Case2: Pass, Result: 12600.372
+Case3: Pass, Result: 60718.572
+Case4: Pass, Result: 1729264.636
+Case5: Pass, Result: 15625.172
+prof_sum: 1818252.744
+```
+
+Conclusion: full pass and faster than v141 by 27.688us, validating that Pack4 scheduling overhead matters. It is still 20.232us slower than the v121 recovery result, so reducing blockDim all the way to 30 is not clearly better than v121's 40-block launch.
