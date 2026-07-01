@@ -682,7 +682,18 @@ Conclusion: full pass, proving direct int8 DMA atomic is legal on the platform. 
 - SHA256: `cb2db7be7059f60c574e9ce172b37d3afd152617b077a14dddedbc1c2aa675d5`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 15:47:47 CST, workId `IndexAdd_v164_owner_atomic_once.zip`.
-- Official result: pending.
+- Official result:
+
+```text
+Case1: Pass, Result: 34.22
+Case2: Pass, Result: 12595.064
+Case3: Pass, Result: 60739.864
+Case4: Pass, Result: 1812396.42
+Case5: Pass, Result: 15613.808
+prof_sum: 1901379.376
+```
+
+Conclusion: full pass, but no improvement over v162/v148. Moving `SetAtomicAdd<int8_t>()` outside the per-outer loop does not solve the fine-grained atomic DMA command bottleneck.
 
 ## v165 workspace-atomic-i8
 
@@ -712,3 +723,13 @@ Conclusion: full pass, proving direct int8 DMA atomic is legal on the platform. 
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 16:15:09 CST, workId `IndexAdd_v167_row_gather_i16_reduce.zip`.
 - Official result: pending; as of 16:15 CST the ranking row still pointed to v160's `2026/07/01 15:20:04` result.
+
+## v168 opapi-builtin-forward
+
+- Change: override the generated `aclnnIndexAdd` op_api entry with a C++ shim. The shim first tries to forward each call to CANN's built-in `libopapi.so` `aclnnIndexAdd`; if that symbol path is unavailable or rejects the case, it falls back to the original generated custom-op executor embedded from `aclnn_index_add.cpp`.
+- Rationale: the public wrapper calls `aclnnIndexAdd` 30 times and profiles the median AICore task duration. This candidate tests whether CANN's built-in IndexAdd implementation already contains a lower-scalar segmented-reduce path for the hidden Case4 shape, without changing the existing GE/kernel fallback.
+- Package: `IndexAdd_v168_opapi_builtin_forward.zip`
+- SHA256: `5bb5a95d382b998d71deb0a45be4b6c98847632a1dfc4b445faad9d126942d44`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source; `libcust_opapi.so` exports `aclnnIndexAddGetWorkspaceSize` and `aclnnIndexAdd`.
+- Submit: pending.
+- Official result: pending.
