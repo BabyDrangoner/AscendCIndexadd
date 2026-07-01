@@ -447,4 +447,15 @@ Conclusion: recovery submit succeeded and restored the official row to the stabl
 - SHA256: `46d8c419620d9903badadce3ca1cc62d477f1ca9bd22617609d935b10d801efb`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-07-01 12:44:54 CST, workId `IndexAdd_v144_case4_pack3_packed.zip`.
-- Monitor: pending as of 2026-07-01 12:45:06 CST; ranking row still points to v121's 2026-07-01 12:23:43 result.
+- Official result:
+
+```text
+Case1: Pass, Result: 33.324
+Case2: Pass, Result: 12562.828
+Case3: Pass, Result: 60738.508
+Case4: Pass, Result: 1823483.112
+Case5: Pass, Result: 15605.608
+prof_sum: 1912423.38
+```
+
+Conclusion: full pass but much slower than v121. Pack3 gives all 40 blocks useful work, but the extra 40 Pack3 index loops versus 30 Pack4 loops dominates; lower register pressure and occupancy do not compensate.
