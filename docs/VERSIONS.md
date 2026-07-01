@@ -631,7 +631,18 @@ Conclusion: full pass but worse than v148 by about 83ms. The lane-by-lane float 
 - SHA256: `5c073be51e331fcae9288c422f23420ba6b8bc34a8ba7b56469e2686c605c432`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 15:25:27 CST, workId `IndexAdd_v161_gather_i16_reduce.zip`.
-- Official result: pending; as of 15:25 CST the ranking row still pointed to v151's `2026/07/01 14:23:54` `-1us` result.
+- Official result:
+
+```text
+Case1: Pass, Result: 37.82
+Case2: Pass, Result: 12616.528
+Case3: Pass, Result: 61495.776
+Case4: Pass, Result: 1812413.892
+Case5: Pass, Result: 15620.32
+prof_sum: 1902184.336
+```
+
+Conclusion: full pass but slightly worse than v160. Reducing in int16 preserves int8 wraparound behavior, but lane-by-lane Gather still has too much command and barrier overhead.
 
 ## v162 atomic-i8-hotcase
 
