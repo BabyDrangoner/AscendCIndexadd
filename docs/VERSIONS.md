@@ -580,3 +580,12 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - SHA256: `ecbd759cd88597b94d812cca3e1eab4f7c79e31d29c4520d376692ebad269a06`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: not submitted yet.
+
+## v159 pack16-bucket
+
+- Change: add an exact hot Case4 Pack16 bucket path for `dtype=int8`, `index=int32`, `outer=8192`, `axis=6`, `inner=7`, and `index_len=1024`. The kernel preclassifies the shared 1024-entry index into `2 x 6` tile-local offset buckets, then the Pack16 hot loop accumulates each axis bucket directly instead of executing a per-source-row switch.
+- Rationale: this adapts the small-inner/group-reduce direction from the latest external suggestion while avoiding unsupported int8 atomic add. Compared with v140's Pack4 bucket attempt, v159 keeps the best confirmed Pack16 source tiling and stores offsets per 512-row tile so each bucket only references the currently resident 4KB source slot.
+- Package: `IndexAdd_v159_pack16_bucket.zip`
+- SHA256: `25f557bd1531730f62de0f8e86dd85be79440b8f5b0b0b758058f9f6e499ed81`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: pending.
