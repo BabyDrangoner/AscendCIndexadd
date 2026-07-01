@@ -104,7 +104,8 @@ class IndexAddKernel {
   __aicore__ inline IndexAddKernel() {}
 
   __aicore__ inline void Init(GM_ADDR input, GM_ADDR index, GM_ADDR source,
-                              GM_ADDR output, const IndexAddTilingData* tiling) {
+                              GM_ADDR output, GM_ADDR workspace,
+                              const IndexAddTilingData* tiling) {
     outer_ = tiling->outer;
     axis_ = tiling->axis;
     inner_ = tiling->inner;
@@ -150,6 +151,7 @@ class IndexAddKernel {
 
     index32_gm_.SetGlobalBuffer((__gm__ int32_t*)index, index_len_);
     index64_gm_.SetGlobalBuffer((__gm__ int64_t*)index, index_len_);
+    workspace_i32_gm_.SetGlobalBuffer((__gm__ int32_t*)workspace, 1024);
 
     const uint32_t rows = outer_ * axis_;
     const uint32_t work_units = rows * inner_tiles_;
@@ -173,6 +175,10 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
+    if (UseCase4IndexMajorAtomicSyncPath()) {
+      ProcessCase4IndexMajorAtomicSyncInt8();
+      return;
+    }
     if (UseCase4MaskReduceI8Path()) {
       ProcessCase4MaskReduceI8();
       return;
@@ -301,6 +307,12 @@ class IndexAddKernel {
   }
 
   __aicore__ inline bool UseCase4Int8StridedAtomicBatchPath() const {
+    return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
+           ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
+           index_len_ == 1024 && outer_ == 120;
+  }
+
+  __aicore__ inline bool UseCase4IndexMajorAtomicSyncPath() const {
     return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
            ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
            index_len_ == 1024 && outer_ == 120;
@@ -1247,6 +1259,46 @@ class IndexAddKernel {
                   row_copy);
       PipeBarrier<PIPE_MTE3>();
     }
+  }
+
+  __aicore__ inline void ProcessCase4IndexMajorAtomicSyncInt8() {
+    constexpr uint32_t kOuterBytes = 42;
+    constexpr uint32_t kSourceOuterBytes = 1024 * 7;
+    constexpr uint32_t kLocalRowStride = 32;
+    LocalTensor<int32_t> idx = index32_buf_.Get<int32_t>();
+    LocalTensor<int8_t> buf = src_buf_.Get<int8_t>();
+    LocalTensor<int32_t> sync_ub = src_cast_buf_.Get<int32_t>();
+    DataCopyPadParams pad{false, 0, 0, 0};
+    DataCopyParams row_copy{1, kOuterBytes, 0, 0};
+    const uint32_t core_num = GetBlockNum();
+    const uint32_t cid = GetBlockIdx();
+
+    for (uint32_t outer_id = cid; outer_id < outer_; outer_id += core_num) {
+      DataCopyPad(buf, input_i8_gm_[InputOffset(outer_id, 0, 0)], row_copy,
+                  pad);
+      PipeBarrier<PIPE_MTE2>();
+      DataCopyPad(output_i8_gm_[InputOffset(outer_id, 0, 0)], buf, row_copy);
+      PipeBarrier<PIPE_MTE3>();
+    }
+
+    SyncAll<true>(workspace_i32_gm_, sync_ub, static_cast<int32_t>(core_num));
+
+    RawCopyIndexTile(idx, 0, 1024);
+    SetAtomicAdd<int8_t>();
+    for (uint32_t j = cid; j < 1024; j += core_num) {
+      const uint32_t axis_id = static_cast<uint32_t>(idx.GetValue(j));
+      DataCopyParams src_batch{static_cast<uint16_t>(outer_), 7,
+                               static_cast<uint16_t>(kSourceOuterBytes - 7),
+                               static_cast<uint16_t>(kLocalRowStride - 7)};
+      DataCopyPad(buf, source_i8_gm_[SourceOffset(0, j, 0)], src_batch, pad);
+      PipeBarrier<PIPE_MTE2>();
+      DataCopyParams dst_batch{static_cast<uint16_t>(outer_), 7,
+                               static_cast<uint16_t>(kLocalRowStride - 7),
+                               static_cast<uint16_t>(kOuterBytes - 7)};
+      DataCopyPad(output_i8_gm_[InputOffset(0, axis_id, 0)], buf, dst_batch);
+      PipeBarrier<PIPE_MTE3>();
+    }
+    SetAtomicNone();
   }
 
   __aicore__ inline void ProcessCase4StridedAtomicBatch2Int8() {
@@ -4094,6 +4146,7 @@ class IndexAddKernel {
   GlobalTensor<uint16_t> output_u16_gm_;
   GlobalTensor<int32_t> index32_gm_;
   GlobalTensor<int64_t> index64_gm_;
+  GlobalTensor<int32_t> workspace_i32_gm_;
   TPipe pipe_;
   TBuf<TPosition::VECCALC> index32_buf_;
   TBuf<TPosition::VECCALC> index64_buf_;
@@ -4106,9 +4159,8 @@ class IndexAddKernel {
 extern "C" __global__ __aicore__ void index_add(
     GM_ADDR input, GM_ADDR index, GM_ADDR source, GM_ADDR output,
     GM_ADDR workspace, GM_ADDR tiling) {
-  (void)workspace;
   GET_TILING_DATA(td, tiling);
   IndexAddKernel op;
-  op.Init(input, index, source, output, &td);
+  op.Init(input, index, source, output, workspace, &td);
   op.Process();
 }

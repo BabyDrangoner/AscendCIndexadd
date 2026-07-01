@@ -525,3 +525,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `0ebf6e650dc18a75f202c91fd8107fdfd8315d15b4647e60c39286e6f6ce23db`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: not submitted; use if v195 fails or if batch4 appears under-parallelized.
+
+## v198 pytorch-largeindex-sync
+
+- Change: implement a PyTorch CUDA large-index style exact Case4 path. The kernel first initializes all 120 output slices from input, uses `SyncAll` with a small GM workspace, then splits the 1024 index rows across AIV cores. Each `j` copies all 120 outer rows with one strided `DataCopyPad` and atomically adds them to the indexed output axis with one strided atomic `DataCopyPad`.
+- Rationale: PyTorch switches `index_add_cuda` to a large-index kernel when `numIndex > 16`, parallelizing over `sourceTotalSize` and using atomic accumulation. v195/v196/v197 tested the safer output-owned version but still issue `outer_batch_count * index_len` strided commands. v198 uses cross-core sync to safely initialize output once, then reduces the hot atomic command count from tens of thousands to about 1024.
+- Package: `IndexAdd_v198_pytorch_largeindex_sync.zip`
+- SHA256: `9b7e5097fce4ce4e6d05ea68f48a32dd7cfdc2c8e4317269145162accc95770a`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted.
