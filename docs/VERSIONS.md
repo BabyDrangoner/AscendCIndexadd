@@ -864,7 +864,18 @@ Conclusion: full pass, but the two 8-block strided source DMA shape does not imp
 - SHA256: `e57b07932a248fe3cd12cfbb45421a2099a7013bec017d8bae44d094f073ebdf`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 17:42:55 CST, workId `IndexAdd_v176_case4_two_sample.zip`.
-- Official result: pending.
+- Official result:
+
+```text
+Case1: Pass, Result: 41.952
+Case2: Pass, Result: 12598.032
+Case3: Pass, Result: 60723.892
+Case4: Pass, Result: 1812605.008
+Case5: Pass, Result: 15382.4
+prof_sum: 1901351.284
+```
+
+Conclusion: full pass but no repeated-call collapse. Reducing the ready check to two samples does not move Case4 out of the 1.812s band.
 
 ## v179 workspace-signature
 
