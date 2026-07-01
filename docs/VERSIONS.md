@@ -713,7 +713,8 @@ Conclusion: full pass, but no improvement over v162/v148. Moving `SetAtomicAdd<i
 - Package: `IndexAdd_v182_opapi_private_marker.zip`
 - SHA256: `1c67d4019643e127809efb9fbada5f7dcefce7b1fc775f0be7926363d3cedbbc`
 - Verification: Docker build passed; zip top-level host/kernel/fast op_api sources match local files; run-package embedded `index_add.cpp` matches local kernel source.
-- Submit: not submitted; keep as backup until v181 official result is known.
+- Submit: 2026-07-01 18:46:24 CST, workId `IndexAdd_v182_opapi_private_marker.zip`.
+- Official result: pending; as of 18:46 CST the ranking row still pointed to v172's `2026/07/01 17:11:35` result.
 
 ## v166 workspace-atomic-packed
 
