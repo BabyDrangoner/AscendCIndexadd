@@ -551,4 +551,5 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - Package: `IndexAdd_v149_case4_pack32_array.zip`
 - SHA256: `589770604310d6844fc04a5e9f667546aaca86fbf876d3f480e8ff07422be50b`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
-- Submit: pending.
+- Submit: 2026-07-01 14:02:40 CST, workId `IndexAdd_v149_case4_pack32_array.zip`.
+- Official result: pending; as of 14:04 CST the ranking row still pointed to v148's `2026/07/01 13:31:43` result.
