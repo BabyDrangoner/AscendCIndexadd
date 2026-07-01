@@ -543,3 +543,12 @@ prof_sum: 1818199.54
 ```
 
 Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar PackN trend, but the total gain remains far below the order-level target; the hot loop is still dominated by scalar packed loads/adds and index dispatch.
+
+## v149 case4-pack32-array
+
+- Change: add an exact int8 Case4 Pack32 path for `outer % 32 == 0`. It uses four 16KB UB buffers split into eight 2KB source slots, processes the index dimension as four 256-row tiles, and stores the 32 x 6 packed accumulators in a local scalar array so each index performs a dynamic bucket update instead of a six-way switch.
+- Rationale: Pack8/Pack16 confirmed that reducing dispatch groups helps but does not break the scalar ceiling. This candidate tests a different scalar shape: halve Pack16's group count again and remove the per-index switch, accepting the risk that dynamic accumulator indexing spills into private memory.
+- Package: `IndexAdd_v149_case4_pack32_array.zip`
+- SHA256: `589770604310d6844fc04a5e9f667546aaca86fbf876d3f480e8ff07422be50b`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: pending.
