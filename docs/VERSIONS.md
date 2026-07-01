@@ -237,3 +237,12 @@ Conclusion: invalid candidate. Always registering the KFC object did not fix the
 - SHA256: `c2db5a882fccd77a6b16dedaf7f9664439654f2176b57d4264a12872dd2403aa`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: not submitted yet; official submit needs a refreshed HiAscend cookie.
+
+## v133 kfc-cap24-all-m64
+
+- Change: keep v132's KFC lifecycle/workspace/blockDim fixes, but reduce dense Case4 Matmul M tile from 128 to 64 rows.
+- Rationale: M=128 minimizes command count, while M=64 may have better cube/cache efficiency. Both should be kept as official A/B candidates once the cookie is refreshed.
+- Package: `IndexAdd_v133_kfc_cap24_all_m64.zip`
+- SHA256: `dedf40eafce62568dc465bbf84ce931f3145ce59a8798d931cdc8a995b265c5a`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: not submitted yet; official submit needs a refreshed HiAscend cookie.
