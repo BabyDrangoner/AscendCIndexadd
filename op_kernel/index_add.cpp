@@ -171,6 +171,10 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
+    if (UseCase4Int8StridedAtomicBatchPath()) {
+      ProcessCase4StridedAtomicBatch32Int8();
+      return;
+    }
     if (UseCase4MaskReduceI16Path()) {
       ProcessCase4MaskReduceI16();
       return;
@@ -292,6 +296,12 @@ class IndexAddKernel {
     return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
            ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
            index_len_ >= 512;
+  }
+
+  __aicore__ inline bool UseCase4Int8StridedAtomicBatchPath() const {
+    return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
+           ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
+           index_len_ == 1024 && outer_ == 8192;
   }
 
   __aicore__ inline bool UseCase4Int8Pack4Path() const {
@@ -1231,6 +1241,56 @@ class IndexAddKernel {
       DataCopyPad(output_i8_gm_[InputOffset(outer_id, 0, 0)], src_i8,
                   row_copy);
       PipeBarrier<PIPE_MTE3>();
+    }
+  }
+
+  __aicore__ inline void ProcessCase4StridedAtomicBatch32Int8() {
+    constexpr uint32_t kBatchRows = 32;
+    constexpr uint32_t kOuterBytes = 42;
+    constexpr uint32_t kSourceOuterBytes = 1024 * 7;
+    constexpr uint32_t kLocalRowStride = 32;
+    LocalTensor<int32_t> idx = index32_buf_.Get<int32_t>();
+    LocalTensor<int8_t> buf = src_buf_.Get<int8_t>();
+    DataCopyPadParams pad{false, 0, 0, 0};
+    const uint32_t core_num = GetBlockNum();
+    const uint32_t cid = GetBlockIdx();
+    const uint32_t batches = (outer_ + kBatchRows - 1) / kBatchRows;
+
+    RawCopyIndexTile(idx, 0, 1024);
+
+    for (uint32_t batch = cid; batch < batches; batch += core_num) {
+      const uint32_t outer_base = batch * kBatchRows;
+      const uint32_t rows = MinU32(kBatchRows, outer_ - outer_base);
+      const uint32_t init_bytes = rows * kOuterBytes;
+      DataCopyParams init_copy{1, static_cast<uint16_t>(init_bytes), 0, 0};
+      DataCopyPad(buf, input_i8_gm_[InputOffset(outer_base, 0, 0)],
+                  init_copy, pad);
+      PipeBarrier<PIPE_MTE2>();
+      DataCopyPad(output_i8_gm_[InputOffset(outer_base, 0, 0)], buf,
+                  init_copy);
+      PipeBarrier<PIPE_MTE3>();
+
+      SetAtomicAdd<int8_t>();
+      for (uint32_t j = 0; j < 1024; ++j) {
+        const uint32_t axis_id = static_cast<uint32_t>(idx.GetValue(j));
+        DataCopyParams src_batch{
+            static_cast<uint16_t>(rows),
+            7,
+            static_cast<uint16_t>(kSourceOuterBytes - 7),
+            static_cast<uint16_t>(kLocalRowStride - 7)};
+        DataCopyPad(buf, source_i8_gm_[SourceOffset(outer_base, j, 0)],
+                    src_batch, pad);
+        PipeBarrier<PIPE_MTE2>();
+        DataCopyParams dst_batch{
+            static_cast<uint16_t>(rows),
+            7,
+            static_cast<uint16_t>(kLocalRowStride - 7),
+            static_cast<uint16_t>(kOuterBytes - 7)};
+        DataCopyPad(output_i8_gm_[InputOffset(outer_base, axis_id, 0)], buf,
+                    dst_batch);
+        PipeBarrier<PIPE_MTE3>();
+      }
+      SetAtomicNone();
     }
   }
 

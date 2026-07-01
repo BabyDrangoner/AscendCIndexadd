@@ -445,7 +445,14 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `13423e2aad851699d45320c981b0abe61c575a2e32191055e01dd45f747cdc33`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: 2026-07-01 19:47:07 CST, workId `IndexAdd_v189_pack4_paircode.zip`.
-- Monitor: pending as of 2026-07-01 19:47:18 CST; workInfo shows v189, while the ranking row still points to the previous `2026/07/01 18:36:49` result.
+- Official result: 2026-07-01 18:46:23 ranking row, rank 11, full pass.
+  - Case1: 34.512us
+  - Case2: 12628.44us
+  - Case3: 60763.388us
+  - Case4: 1812699.08us
+  - Case5: 15367.468us
+  - prof_sum: 1901492.888us
+- Conclusion: full pass, but pair-code predecode does not break the Case4 scalar ceiling. Case4 stays in the same 1.81s band as v182/v185, so the next useful candidates must reduce the number of hot-loop DMA/scalar dispatch operations rather than only changing index decode shape.
 
 ## v190 pack4-trust-paircode
 
@@ -455,3 +462,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `9d5ea310611368be177cfe931a6c70d066da9f904ba595ee8fbb742f4248bc2e`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: not submitted; keep v189 as the active official queue until a result appears.
+
+## v192 strided-atomic-batch32
+
+- Change: add an exact hot Case4 int8 path before the Pack4 scalar path. Each core owns 32 outer rows at a time, copies their 42-byte input slices to output, then uses `SetAtomicAdd<int8_t>()` with strided multi-block `DataCopyPad` to add one fixed index row across all 32 outer rows in a single batched command.
+- Rationale: v162/v164 proved int8 DMA atomic is legal but used one atomic command per `(outer, index)` row. This candidate tests the external strided-batched atomic idea and aims to reduce the hot Case4 command count by about 32x while preserving source-order semantics and avoiding scalar packed accumulation.
+- Package: `IndexAdd_v192_strided_atomic_batch32.zip`
+- SHA256: `be00639014714c671c075cb052a071548163d650aa7ee0b90c4830b6baf29faa`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted. This is a high-upside/high-risk runtime probe: if strided multi-block `DataCopyPad` plus int8 atomic works on the official runner it can cut the Case4 command count substantially; if the runner rejects that DMA/atomic shape, Case4 may fail and the submission will show `-1us`.
