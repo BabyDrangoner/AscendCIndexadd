@@ -274,4 +274,5 @@ Conclusion: invalid candidate. Always registering the KFC object did not fix the
 - Package: `IndexAdd_v151_kfc_hotcase_outer8192.zip`
 - SHA256: `c3ca92e4e6748b760821221ab0bc77c77a526cff3ac381d09ab61b7a5076371e`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
-- Submit: pending.
+- Submit: 2026-07-01 14:23:56 CST, workId `IndexAdd_v151_kfc_hotcase_outer8192.zip`.
+- Monitor: pending as of 2026-07-01 14:24 CST; ranking row still points to the older v148 result from 2026-07-01 13:31:43.
