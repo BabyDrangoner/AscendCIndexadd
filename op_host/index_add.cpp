@@ -170,9 +170,12 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
   const bool use_case4_i8_outer1 =
       use_case4_outer_owned && dtype_mode == 1 &&
       (index_dtype_size == 4 || index_dtype_size == 8) && index_len >= 512;
-  const bool use_case4_i8_dense_gma =
+  const bool use_case4_i8_vcadd_reduce =
       use_case4_outer_owned && dtype_mode == 1 && index_dtype_size == 4 &&
       index_len == 1024;
+  const bool use_case4_i8_dense_gma =
+      use_case4_outer_owned && dtype_mode == 1 && index_dtype_size == 4 &&
+      index_len == 1024 && !use_case4_i8_vcadd_reduce;
   const bool use_case4_i8_aligned_rows =
       use_case4_outer_owned && dtype_mode == 1 && index_dtype_size == 4 &&
       index_len >= 512;
@@ -190,6 +193,8 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
             ? 1
             : 32 / GcdU64(inner1_row_bytes & 31, 32);
     work_units = (static_cast<uint64_t>(outer) + row_group - 1) / row_group;
+  } else if (use_case4_i8_vcadd_reduce) {
+    work_units = outer;
   } else if (use_case4_i8_dense_gma) {
     const uint64_t outer_groups =
         (static_cast<uint64_t>(outer) + 32 - 1) / 32;
@@ -257,8 +262,9 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
       work_units = 1;
     }
   }
-  const uint32_t block_cap = use_case4_i8_dense_gma ? 24 :
-                             (use_case4_i8_outer1 ? 40 : 32);
+  const uint32_t block_cap = use_case4_i8_vcadd_reduce ? 40 :
+                             (use_case4_i8_dense_gma ? 24 :
+                             (use_case4_i8_outer1 ? 40 : 32));
   uint32_t block_dim =
       work_units < block_cap ? static_cast<uint32_t>(work_units) : block_cap;
   if (block_dim == 0) block_dim = 1;

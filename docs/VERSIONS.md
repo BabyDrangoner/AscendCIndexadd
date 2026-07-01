@@ -237,7 +237,17 @@ Conclusion: invalid candidate. Always registering the KFC object did not fix the
 - SHA256: `c2db5a882fccd77a6b16dedaf7f9664439654f2176b57d4264a12872dd2403aa`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: 2026-07-01 10:33:50 CST, workId `IndexAdd_v132_kfc_cap24_all.zip`.
-- Monitor: pending as of 2026-07-01 10:34:03 CST; ranking row still points to the older 2026-06-30 21:10:34 submission.
+- Official result:
+
+```text
+Case1: Pass, Result: 73.696
+Case2: Pass, Result: 16803.192
+Case3: Pass, Result: 60730.112
+Case4: Run failed!
+Case5: Run failed!
+```
+
+Conclusion: invalid candidate. Even with AIV-only buffer initialization and a global `blockDim` cap, the KFC registration/matmul shape still fails the exact hot Case4 path and also breaks Case5. Further work should not keep tuning KFC block parameters until the split-core runtime failure is understood in isolation.
 - Pipeline note: HiAscend changed the OBS upload flow used by the submit page. `tools/submit_hiascend.mjs` now posts multipart form data to `/devCenter/contested/enrollment/uploadWorkToObs` and submits with `workId` equal to the zip filename, matching the current frontend.
 
 ## v133 kfc-cap24-all-m64
@@ -266,3 +276,12 @@ Conclusion: invalid candidate. Always registering the KFC object did not fix the
 - SHA256: `76d8c0ac83d2c2f3cfbfa6c2712c1d0a3a64ff6435eb99689652eaea26f6c6fb`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: not submitted yet; wait for v132's official result before overwriting the platform row.
+
+## v137 case4-vcadd-f32-reduce
+
+- Change: add a non-KFC exact int8 Case4 path for `index=int32`, `axis=6`, `inner=7`, and `index_len=1024`. The path precomputes the shared onehot masks once per core, selects matching rows in half, casts to float for exact int8 accumulation, then uses lane-wise `WholeReduceSum`/`vcadd` over 8-row groups instead of the previous hand-written tree reduction.
+- Rationale: v120/v118 proved onehot mask-reduce correctness but spent too much time in six full bucket scans plus manual reductions. This candidate keeps source access contiguous and replaces the reduction core with the hardware reduce primitive while avoiding all KFC registration.
+- Package: `IndexAdd_v137_case4_vcadd_f32_reduce.zip`
+- SHA256: `b8e607b3e332c79695f097ea2f5f277489430d76f4155ba1a76c191850c37b8e`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: not submitted yet.

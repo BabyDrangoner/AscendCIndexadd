@@ -23,6 +23,9 @@ constexpr uint32_t kCase4MaskReduceElems = kCase4MaskReduceTile * 7;
 constexpr uint32_t kCase4MaskReduceMaskBytes = kCase4MaskReduceElems / 8;
 constexpr uint32_t kCase4MaskReduceIdxBytes =
     kCase4MaskReduceElems * sizeof(int32_t);
+constexpr uint32_t kCase4MaskReduceRowsPerVcadd = 8;
+constexpr uint32_t kCase4MaskReduceVcaddRepeats =
+    kCase4MaskReduceTile / kCase4MaskReduceRowsPerVcadd;
 constexpr uint32_t kCase4DenseM = 32;
 constexpr uint32_t kCase4DenseN = 16;
 constexpr uint32_t kCase4DenseK = 1024 * 7;
@@ -279,6 +282,10 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
+    if (UseCase4VcaddReduceF32Path()) {
+      ProcessCase4VcaddReduceF32();
+      return;
+    }
     if (UseCase4DenseGmAPath()) {
       ProcessCase4DenseGmAInt8();
       return;
@@ -372,6 +379,9 @@ class IndexAddKernel {
   }
 
   __aicore__ inline bool UseCase4DenseGmAPath() const {
+    if (UseCase4VcaddReduceF32Path()) {
+      return false;
+    }
     return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
            ndim_ == 6 && dim_ == 4 && axis_ == kCase4DenseAxis &&
            inner_ == kCase4DenseInner && index_len_ == 1024 &&
@@ -421,6 +431,12 @@ class IndexAddKernel {
     return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
            ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
            index_len_ >= 512 && ((outer_ & 3) == 0);
+  }
+
+  __aicore__ inline bool UseCase4VcaddReduceF32Path() const {
+    return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
+           ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
+           index_len_ == 1024 && outer_ > 0;
   }
 
   __aicore__ inline bool UseCase4MaskReduceI16Path() const {
@@ -1320,6 +1336,111 @@ class IndexAddKernel {
           }
         }
       }
+    }
+  }
+
+  __aicore__ inline void ProcessCase4VcaddReduceF32() {
+    LocalTensor<int32_t> idx_exp = index32_buf_.Get<int32_t>();
+    LocalTensor<uint8_t> masks =
+        index32_buf_.Get<uint8_t>()[kCase4MaskReduceIdxBytes];
+    LocalTensor<int8_t> src_i8 = src_buf_.Get<int8_t>();
+    LocalTensor<float> reduce_tmp = src_buf_.Get<float>();
+    LocalTensor<float> partial = src_buf_.Get<float>()[128];
+    LocalTensor<half> src_h = src_cast_buf_.Get<half>();
+    LocalTensor<half> masked_h = out_buf_.Get<half>();
+    LocalTensor<float> masked_f = acc_buf_.Get<float>();
+    DataCopyPadParams pad{false, 0, 0, 0};
+    DataCopyParams row_copy{1, 42, 0, 0};
+    DataCopyParams src_copy{1, static_cast<uint16_t>(kCase4MaskReduceElems), 0,
+                            0};
+    uint64_t lane_mask[2] = {0, 0};
+
+    for (uint32_t tile = 0; tile < 2; ++tile) {
+      const uint32_t base = tile * kCase4MaskReduceTile;
+      for (uint32_t i = 0; i < kCase4MaskReduceTile; ++i) {
+        const int32_t v = index32_gm_.GetValue(base + i);
+        const uint32_t off = i * 7;
+        idx_exp.SetValue(off + 0, v);
+        idx_exp.SetValue(off + 1, v);
+        idx_exp.SetValue(off + 2, v);
+        idx_exp.SetValue(off + 3, v);
+        idx_exp.SetValue(off + 4, v);
+        idx_exp.SetValue(off + 5, v);
+        idx_exp.SetValue(off + 6, v);
+      }
+      for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
+        const uint32_t mask_off =
+            (tile * 6 + axis_id) * kCase4MaskReduceMaskBytes;
+        CompareScalar(masks[mask_off], idx_exp, static_cast<int32_t>(axis_id),
+                      CMPMODE::EQ, kCase4MaskReduceElems);
+        PipeBarrier<PIPE_V>();
+      }
+    }
+
+    const uint32_t core_num = GetBlockNum();
+    const uint32_t cid = GetBlockIdx();
+    for (uint32_t outer_id = cid; outer_id < outer_; outer_id += core_num) {
+      for (uint32_t i = 0; i < 42; ++i) {
+        partial.SetValue(i, 0.0f);
+      }
+
+      for (uint32_t tile = 0; tile < 2; ++tile) {
+        const uint32_t base = tile * kCase4MaskReduceTile;
+        DataCopyPad(src_i8, source_i8_gm_[SourceOffset(outer_id, base, 0)],
+                    src_copy, pad);
+        PipeBarrier<PIPE_MTE2>();
+        Cast(src_h, src_i8, RoundMode::CAST_NONE, kCase4MaskReduceElems);
+        PipeBarrier<PIPE_V>();
+
+        for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
+          const uint32_t mask_off =
+              (tile * 6 + axis_id) * kCase4MaskReduceMaskBytes;
+          Select(masked_h, masks[mask_off], src_h, static_cast<half>(0),
+                 SELMODE::VSEL_TENSOR_SCALAR_MODE, kCase4MaskReduceElems);
+          PipeBarrier<PIPE_V>();
+          Cast(masked_f, masked_h, RoundMode::CAST_NONE,
+               kCase4MaskReduceElems);
+          PipeBarrier<PIPE_V>();
+
+#define CASE4_VCADD_LANE(LANE, MASK_LOW) \
+          do { \
+            lane_mask[0] = (MASK_LOW); \
+            WholeReduceSum<float, true>(reduce_tmp, masked_f, lane_mask, \
+                                        kCase4MaskReduceVcaddRepeats, 1, 1, 7); \
+            PipeBarrier<PIPE_V>(); \
+            WholeReduceSum<float, true>(reduce_tmp[64], reduce_tmp, 64, 1, 1, \
+                                        1, 8); \
+            PipeBarrier<PIPE_V>(); \
+            const uint32_t poff = axis_id * 7 + (LANE); \
+            partial.SetValue(poff, partial.GetValue(poff) + \
+                                       reduce_tmp.GetValue(64)); \
+          } while (0)
+          CASE4_VCADD_LANE(0, 0x2040810204081ULL);
+          CASE4_VCADD_LANE(1, 0x4081020408102ULL);
+          CASE4_VCADD_LANE(2, 0x8102040810204ULL);
+          CASE4_VCADD_LANE(3, 0x10204081020408ULL);
+          CASE4_VCADD_LANE(4, 0x20408102040810ULL);
+          CASE4_VCADD_LANE(5, 0x40810204081020ULL);
+          CASE4_VCADD_LANE(6, 0x81020408102040ULL);
+#undef CASE4_VCADD_LANE
+        }
+      }
+
+      DataCopyPad(src_i8, input_i8_gm_[InputOffset(outer_id, 0, 0)], row_copy,
+                  pad);
+      PipeBarrier<PIPE_MTE2>();
+      for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
+        const uint32_t dst_base = axis_id * 7;
+        const uint32_t partial_base = axis_id * 7;
+        for (uint32_t w = 0; w < 7; ++w) {
+          int32_t sum = static_cast<int32_t>(src_i8.GetValue(dst_base + w));
+          sum += static_cast<int32_t>(partial.GetValue(partial_base + w));
+          src_i8.SetValue(dst_base + w, static_cast<int8_t>(sum));
+        }
+      }
+      DataCopyPad(output_i8_gm_[InputOffset(outer_id, 0, 0)], src_i8,
+                  row_copy);
+      PipeBarrier<PIPE_MTE3>();
     }
   }
 
