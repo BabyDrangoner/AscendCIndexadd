@@ -610,7 +610,18 @@ Conclusion: full pass but worse than v148 by about 83ms, so preclassified bucket
 - SHA256: `81f338c5beb6a1d9bb62377f90ceaa5b68a4f5d2377c5b571034bbce119ab0db`
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 15:20:07 CST, workId `IndexAdd_v160_gather_float_reduce.zip`.
-- Official result: pending; as of 15:20 CST the ranking row still pointed to v151's `2026/07/01 14:23:54` `-1us` result.
+- Official result:
+
+```text
+Case1: Pass, Result: 37.956
+Case2: Pass, Result: 12579.64
+Case3: Pass, Result: 61446.868
+Case4: Pass, Result: 1812374.328
+Case5: Pass, Result: 15390.54
+prof_sum: 1901829.332
+```
+
+Conclusion: full pass but worse than v148 by about 83ms. The lane-by-lane float Gather path reduces scalar branching but adds too much cast/gather/reduce overhead.
 
 ## v161 gather-i16-reduce
 
@@ -669,3 +680,12 @@ Conclusion: full pass but worse than v148 by about 83ms, so preclassified bucket
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 16:03:58 CST, workId `IndexAdd_v166_workspace_atomic_packed.zip`.
 - Official result: pending; as of 16:04 CST the ranking row still pointed to v151's `2026/07/01 14:23:54` `-1us` result.
+
+## v167 row-gather-i16-reduce
+
+- Change: add an exact hot Case4 int8 row-gather reduce path before atomic. The shared index is expanded once per core into a compact `uint32_t` offset table containing all seven lane offsets for each bucket, so each `(tile, axis)` uses one `Gather<int16_t>` over `count * 7` values instead of seven lane-specific gathers.
+- Rationale: v160 proved lane-by-lane Gather is too expensive. This candidate keeps the group/reduce algorithm but cuts gather calls per outer from 84 to 12 and reduces lanes together with row-major tree `Add`.
+- Package: `IndexAdd_v167_row_gather_i16_reduce.zip`
+- SHA256: `f11526fdd8669c884230b0ae0b9739ede728cd7faafb94bc0edb0de9d01ec18c`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
+- Submit: pending.

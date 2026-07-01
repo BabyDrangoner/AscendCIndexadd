@@ -174,6 +174,10 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
+    if (UseCase4Int8GatherRowsI16ReducePath()) {
+      ProcessCase4GatherRowsI16ReduceInt8();
+      return;
+    }
     if (UseCase4Int8AtomicPath()) {
       ProcessCase4AtomicInt8();
       return;
@@ -381,6 +385,12 @@ class IndexAddKernel {
   }
 
   __aicore__ inline bool UseCase4Int8GatherI16ReducePath() const {
+    return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
+           ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
+           index_len_ == 1024 && outer_ == 8192;
+  }
+
+  __aicore__ inline bool UseCase4Int8GatherRowsI16ReducePath() const {
     return dtype_mode_ == kDtypeInt8 && index_dtype_size_ == 4 &&
            ndim_ == 6 && dim_ == 4 && axis_ == 6 && inner_ == 7 &&
            index_len_ == 1024 && outer_ == 8192;
@@ -1638,6 +1648,128 @@ class IndexAddKernel {
       sum += static_cast<int32_t>(gathered.GetValue(i));
     }
     return sum;
+  }
+
+  __aicore__ inline void BuildCase4RowGatherOffsets(
+      LocalTensor<uint32_t>& offsets, uint16_t starts[12],
+      uint16_t counts[12]) {
+    for (uint32_t b = 0; b < 12; ++b) {
+      counts[b] = 0;
+    }
+    for (uint32_t i = 0; i < 1024; ++i) {
+      const int32_t v = index32_gm_.GetValue(i);
+      const uint32_t bucket = (i >> 9) * 6 + static_cast<uint32_t>(v);
+      counts[bucket] = counts[bucket] + 1;
+    }
+
+    uint16_t cursor = 0;
+    uint16_t write_counts[12];
+    for (uint32_t b = 0; b < 12; ++b) {
+      starts[b] = cursor;
+      cursor = cursor + static_cast<uint16_t>(counts[b] * 7);
+      write_counts[b] = 0;
+    }
+
+    for (uint32_t i = 0; i < 1024; ++i) {
+      const int32_t v = index32_gm_.GetValue(i);
+      const uint32_t bucket = (i >> 9) * 6 + static_cast<uint32_t>(v);
+      const uint32_t row_off = (i & 511) * 7;
+      const uint32_t out = starts[bucket] + write_counts[bucket] * 7;
+      offsets.SetValue(out + 0, row_off + 0);
+      offsets.SetValue(out + 1, row_off + 1);
+      offsets.SetValue(out + 2, row_off + 2);
+      offsets.SetValue(out + 3, row_off + 3);
+      offsets.SetValue(out + 4, row_off + 4);
+      offsets.SetValue(out + 5, row_off + 5);
+      offsets.SetValue(out + 6, row_off + 6);
+      write_counts[bucket] = write_counts[bucket] + 1;
+    }
+  }
+
+  __aicore__ inline void ReduceGatherI16Rows(
+      LocalTensor<int16_t>& gathered, LocalTensor<int16_t>& src,
+      LocalTensor<uint32_t>& row_offsets, uint32_t start, uint32_t rows,
+      int32_t sums[42], uint32_t axis_id) {
+    if (rows == 0) {
+      return;
+    }
+    uint32_t reduce_rows = 16;
+    while (reduce_rows < rows) {
+      reduce_rows <<= 1;
+    }
+    const uint32_t reduce_elems = reduce_rows * 7;
+    Duplicate(gathered, static_cast<int16_t>(0),
+              static_cast<int32_t>(reduce_elems));
+    PipeBarrier<PIPE_V>();
+    Gather(gathered, src, row_offsets[start], 0, rows * 7);
+    PipeBarrier<PIPE_V>();
+    for (uint32_t n = reduce_rows; n > 16; n >>= 1) {
+      const uint32_t h = n >> 1;
+      Add(gathered, gathered, gathered[h * 7], static_cast<int32_t>(h * 7));
+      PipeBarrier<PIPE_V>();
+    }
+    const uint32_t sum_base = axis_id * 7;
+    for (uint32_t r = 0; r < 16; ++r) {
+      const uint32_t off = r * 7;
+      sums[sum_base + 0] += static_cast<int32_t>(gathered.GetValue(off + 0));
+      sums[sum_base + 1] += static_cast<int32_t>(gathered.GetValue(off + 1));
+      sums[sum_base + 2] += static_cast<int32_t>(gathered.GetValue(off + 2));
+      sums[sum_base + 3] += static_cast<int32_t>(gathered.GetValue(off + 3));
+      sums[sum_base + 4] += static_cast<int32_t>(gathered.GetValue(off + 4));
+      sums[sum_base + 5] += static_cast<int32_t>(gathered.GetValue(off + 5));
+      sums[sum_base + 6] += static_cast<int32_t>(gathered.GetValue(off + 6));
+    }
+  }
+
+  __aicore__ inline void ProcessCase4GatherRowsI16ReduceInt8() {
+    constexpr uint32_t kTile = 512;
+    LocalTensor<uint32_t> row_offsets = index32_buf_.Get<uint32_t>();
+    LocalTensor<int8_t> src_i8 = src_buf_.Get<int8_t>();
+    LocalTensor<half> src_h = src_cast_buf_.Get<half>();
+    LocalTensor<int16_t> src_i16 = acc_buf_.Get<int16_t>();
+    LocalTensor<int16_t> gathered = out_buf_.Get<int16_t>();
+    DataCopyPadParams pad{false, 0, 0, 0};
+    DataCopyParams row_copy{1, 42, 0, 0};
+    DataCopyParams src_copy{1, static_cast<uint16_t>(kTile * 7), 0, 0};
+    uint16_t starts[12];
+    uint16_t counts[12];
+    BuildCase4RowGatherOffsets(row_offsets, starts, counts);
+
+    const uint32_t core_num = GetBlockNum();
+    const uint32_t cid = GetBlockIdx();
+    for (uint32_t outer_id = cid; outer_id < outer_; outer_id += core_num) {
+      int32_t sums[42];
+      for (uint32_t i = 0; i < 42; ++i) {
+        sums[i] = 0;
+      }
+      for (uint32_t tile = 0; tile < 2; ++tile) {
+        const uint32_t base = tile * kTile;
+        DataCopyPad(src_i8, source_i8_gm_[SourceOffset(outer_id, base, 0)],
+                    src_copy, pad);
+        PipeBarrier<PIPE_MTE2>();
+        Cast(src_h, src_i8, RoundMode::CAST_NONE, kTile * 7);
+        PipeBarrier<PIPE_V>();
+        Cast(src_i16, src_h, RoundMode::CAST_RINT, kTile * 7);
+        PipeBarrier<PIPE_V>();
+        const uint32_t bucket_base = tile * 6;
+        for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
+          const uint32_t bucket = bucket_base + axis_id;
+          ReduceGatherI16Rows(gathered, src_i16, row_offsets, starts[bucket],
+                              counts[bucket], sums, axis_id);
+        }
+      }
+
+      DataCopyPad(src_i8, input_i8_gm_[InputOffset(outer_id, 0, 0)], row_copy,
+                  pad);
+      PipeBarrier<PIPE_MTE2>();
+      for (uint32_t i = 0; i < 42; ++i) {
+        const int32_t sum = static_cast<int32_t>(src_i8.GetValue(i)) + sums[i];
+        src_i8.SetValue(i, static_cast<int8_t>(sum));
+      }
+      DataCopyPad(output_i8_gm_[InputOffset(outer_id, 0, 0)], src_i8,
+                  row_copy);
+      PipeBarrier<PIPE_MTE3>();
+    }
   }
 
   __aicore__ inline void ProcessCase4GatherI16ReduceInt8() {
