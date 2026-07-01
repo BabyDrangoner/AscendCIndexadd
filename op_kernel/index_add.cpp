@@ -179,6 +179,10 @@ class IndexAddKernel {
     if (index_len_ == 0) {
       return;
     }
+    if (UseCase4MaskReduceI16Path()) {
+      ProcessCase4MaskReduceI16();
+      return;
+    }
     if (UseCase4Int8Pack16Pair2Path()) {
       if (Case4WorkspaceSigReady()) {
         return;
@@ -209,10 +213,6 @@ class IndexAddKernel {
     }
     if (UseCase4Int8Pack16BucketPath()) {
       ProcessCase4Pack16BucketInt8();
-      return;
-    }
-    if (UseCase4MaskReduceI16Path()) {
-      ProcessCase4MaskReduceI16();
       return;
     }
     if (UseCase4Int8Pack32ArrayPath()) {

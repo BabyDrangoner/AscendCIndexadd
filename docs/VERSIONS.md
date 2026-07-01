@@ -748,6 +748,16 @@ prof_sum: 1901506.32
 
 - Conclusion: the op_api host-compute bypass also did not affect Case4 timing. Future order-of-magnitude work should focus on the actual AICore Case4 kernel implementation rather than op_api-level marker/cache tricks.
 
+## v186 mask-reduce-priority
+
+- Change: move the exact hot int8 Case4 `ProcessCase4MaskReduceI16()` dispatch before `ProcessCase4Pack16Int8()`. This forces the existing precomputed-mask/vector-select/tree-reduce path to run for Case4 instead of the scalar packed pair path.
+- Rationale: Case4 profiling shows the hot path is scalar dominated. This candidate tests the closest existing implementation to the proposed onehot mask + vector tree reduction algorithm with the smallest possible source change.
+- Package: `IndexAdd_v186_mask_reduce_priority.zip`
+- SHA256: `97dd103c60ecfd1e6d9cd434062dbfde30aa8556fcfd4a486ce134dc862192ed`
+- Verification: Docker build passed; zip top-level host/kernel/fast op_api sources match local files; run-package embedded `index_add.cpp` matches local kernel source.
+- Submit: 2026-07-01 19:16:42 CST, workId `IndexAdd_v186_mask_reduce_priority.zip`.
+- Official result: pending; as of 19:16 CST the monitor showed v186 as latest work but the ranking timestamp/result still pointed to v185.
+
 ## v166 workspace-atomic-packed
 
 - Change: keep v165's exact hot Case4 32B workspace atomic algorithm, but pack each 7-byte int8 row through `uint64_t` helpers before the 32B atomic write. Workspace initialization and source scatter now use packed row construction instead of seven scalar `GetValue`/`SetValue` pairs per row; final compaction also uses packed 7-byte loads.
