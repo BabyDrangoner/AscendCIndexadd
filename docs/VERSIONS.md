@@ -257,3 +257,12 @@ Conclusion: invalid candidate. Always registering the KFC object did not fix the
 - SHA256: `a6e4459fa03d55493398c596f70865a62406bbe5d80f56a7bdc9e2ad59c5100f`
 - Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
 - Submit: not submitted yet; official submit needs a refreshed HiAscend cookie.
+
+## v135 kfc-conditional-m32
+
+- Change: keep the v134 M=32 dense Case4 Matmul tile, but register the KFC Matmul object only for the exact dense Case4 shape. Non-dense shapes bypass `REGIST_MATMUL_OBJ`, restore the previous 32/40 block caps, and allocate zero workspace.
+- Rationale: v124 used conditional KFC but still initialized VECCALC buffers on AIC; v132/v134 fixed AIV-only buffer initialization but registered KFC for all shapes. This candidate combines the safer parts: AIC avoids VECCALC setup, and fallback cases avoid idle KFC server registration entirely.
+- Package: `IndexAdd_v135_kfc_conditional_m32.zip`
+- SHA256: `76d8c0ac83d2c2f3cfbfa6c2712c1d0a3a64ff6435eb99689652eaea26f6c6fb`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: not submitted yet; wait for v132's official result before overwriting the platform row.

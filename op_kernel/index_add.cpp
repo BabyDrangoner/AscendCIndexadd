@@ -4168,8 +4168,14 @@ extern "C" __global__ __aicore__ void index_add(
   GET_TILING_DATA(td, tiling);
   IndexAddKernel op;
   op.Init(input, index, source, workspace, output, &td);
-  REGIST_MATMUL_OBJ(op.Pipe(), workspace, op.DenseMm(), op.DenseTiling());
-  if ASCEND_IS_AIV {
-    op.Process();
+  if (op.UseCase4DenseGmAPath()) {
+    REGIST_MATMUL_OBJ(op.Pipe(), workspace, op.DenseMm(), op.DenseTiling());
+    if ASCEND_IS_AIV {
+      op.Process();
+    }
+  } else {
+    if ASCEND_IS_AIV {
+      op.Process();
+    }
   }
 }
