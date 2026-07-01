@@ -1400,7 +1400,7 @@ class IndexAddKernel {
     const uint32_t groups = outer_ >> 2;
     const uint32_t core_num = GetBlockNum();
     const uint32_t cid = GetBlockIdx();
-    if (cached_index) {
+    if (cached_index && cid < groups) {
       RawCopyIndexTile(idx, 0, index_len_);
     }
 

@@ -397,3 +397,12 @@ prof_sum: 1818252.744
 ```
 
 Conclusion: full pass and faster than v141 by 27.688us, validating that Pack4 scheduling overhead matters. It is still 20.232us slower than the v121 recovery result, so reducing blockDim all the way to 30 is not clearly better than v121's 40-block launch.
+
+## v143 pack4-idle-skip-indexcopy
+
+- Change: revert v142's host blockDim change and restore v121's 40-block Case4 launch. In the Pack4 kernel, cached index pre-copy now runs only when `cid < groups`, so idle blocks beyond the `outer/4` Pack4 group count skip `RawCopyIndexTile()`.
+- Rationale: v142 showed Pack4 scheduling overhead matters, but lowering blockDim to 30 did not beat v121. This candidate preserves v121's launch shape while removing the most obvious idle-block work.
+- Package: `IndexAdd_v143_pack4_idle_skip_indexcopy.zip`
+- SHA256: `a57922ddeeac813a19a95f804fd11fda3046c23b994105ef6bc0f5a75de25493`
+- Verification: Docker/Lima build passed; top-level sources and run-package embedded `index_add.cpp` match local source.
+- Submit: pending.
