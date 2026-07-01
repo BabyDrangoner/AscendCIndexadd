@@ -607,3 +607,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `e42ecff512dbb91643d92bcd6d116835c05121767c8d7a0e90318aa2eedc9cb7`
 - Verification: Docker build passed; top-level host/kernel source matches the zip.
 - Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
+
+## v213 gatherb-outer2-fix-bd48
+
+- Change: keep v211's corrected two-outer `Gatherb` reducer, but raise the exact int8 Case4 host block cap from 30 to 48.
+- Rationale: this is a more aggressive scheduling point than v212. With 60 outer-pair work groups, `blockDim=48` leaves only 12 blocks with a second group, reducing repeated main-loop work further while still staying close to a blockDim value previously explored in the contest pipeline.
+- Package: `IndexAdd_v213_gatherb_outer2_fix_bd48.zip`
+- SHA256: `1ded1c82c53f86dc430906113e0d4723c9903a0b7fd60c1a58faa74c39b32e55`
+- Verification: Docker build passed; top-level host/kernel source matches the zip.
+- Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
