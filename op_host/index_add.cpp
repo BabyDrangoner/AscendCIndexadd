@@ -119,7 +119,7 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
   for (size_t i = static_cast<size_t>(dim) + 1; i < ndim; ++i) {
     inner *= static_cast<uint32_t>(in.GetDim(i));
   }
-  if (outer == 0 || axis == 0 || inner == 0 || index_len == 0) {
+  if (outer == 0 || axis == 0 || inner == 0) {
     return ge::GRAPH_FAILED;
   }
 

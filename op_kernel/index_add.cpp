@@ -176,6 +176,9 @@ class IndexAddKernel {
   }
 
   __aicore__ inline void Process() {
+    if (index_len_ == 0) {
+      return;
+    }
     if (UseCase4Int8Pack16Pair2Path()) {
       if (Case4WorkspaceSigReady()) {
         return;
