@@ -552,3 +552,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `1fbe395d6e21bfe19ff64e09579338c69c08121b91fc31e55adcbdd70324699d`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: submitted at `2026-07-01 21:18:18 CST` as `IndexAdd_v203_gatherreduce_outer120.zip`; first monitor still shows the old `2026/07/01 19:47:05` ranked result, so the v203 evaluation is pending.
+
+## v204 gatherreduce-block24
+
+- Change: keep v203's exact Case4 GatherReduce kernel, but lower the exact Case4 host block cap from 40 to 24.
+- Rationale: GatherReduce reduces per-outer vector work, so duplicated per-core offset-list construction may become a larger share of runtime. This candidate tests whether less duplicated setup with more outer rows per core beats the fully parallel 40-core launch.
+- Package: `IndexAdd_v204_gatherreduce_block24.zip`
+- SHA256: `35984d329e2f823556914969af195de19cadcb40dbb056ff9efd3117ef7efdb4`
+- Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
+- Submit: not submitted.
