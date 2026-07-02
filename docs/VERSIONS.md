@@ -305,3 +305,5 @@ Case5: Run failed
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `index_add.cpp` matches local source.
 - Submit: 2026-07-01 14:54:09 CST, workId `IndexAdd_v156_kfc_b1_allreg_hotcase.zip`.
 - Monitor: pending as of 2026-07-01 14:54 CST; ranking row still points to v151's 2026-07-01 14:23:54 `-1us` result.
+- Resubmit: 2026-07-02 10:09:43 CST, workId `IndexAdd_v156_kfc_b1_allreg_hotcase.zip`.
+- Monitor: pending as of 2026-07-02 10:09 CST; ranking row still points to v221's 2026-07-02 09:38:13 result (`prof_sum=1818771.568us`).
