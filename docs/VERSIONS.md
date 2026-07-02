@@ -643,3 +643,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `3624b9b6871c6d9b596141474ecb8b5a8b68d94698708b643de59ab92c29d2c0`
 - Verification: Docker build passed; top-level host/kernel source matches the zip.
 - Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
+
+## v220 gatherb-full1024-stride2048
+
+- Change: keep v219's full-1024 Gatherb path, but increase the bucket offset table stride from 1088 to 2048.
+- Rationale: the worst-case six-bucket padded offset footprint for 1024 indices is 1984 rows, so v219's 1088 stride was only safe for near-random distributions. This fixes hidden-case correctness risk without changing the arithmetic path.
+- Package: `IndexAdd_v220_gatherb_full1024_stride2048.zip`
+- SHA256: `659c9fc1d117e0aa1b58fc54e8e2cf3eed02756ec8a62fa7ac6d94f2942d2714`
+- Verification: Docker build passed; top-level host/kernel source matches the zip.
+- Submit: pending official upload.

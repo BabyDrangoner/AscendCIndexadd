@@ -26,7 +26,7 @@ constexpr uint32_t kCase4GatherbFullTile = 1024;
 constexpr uint32_t kCase4GatherbFullElems =
     kCase4GatherbFullTile * kCase4GatherbWidth;
 constexpr uint32_t kCase4GatherbMaxRows = 512;
-constexpr uint32_t kCase4GatherbOffsetStride = 1088;
+constexpr uint32_t kCase4GatherbOffsetStride = 2048;
 constexpr uint32_t kCase4MaskReduceElems =
     kCase4MaskReduceTile * kCase4MaskReduceWidth;
 constexpr uint32_t kCase4MaskReduceMaskBytes = kCase4MaskReduceElems / 8;
