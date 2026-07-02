@@ -307,3 +307,12 @@ Case5: Run failed
 - Monitor: pending as of 2026-07-01 14:54 CST; ranking row still points to v151's 2026-07-01 14:23:54 `-1us` result.
 - Resubmit: 2026-07-02 10:09:43 CST, workId `IndexAdd_v156_kfc_b1_allreg_hotcase.zip`.
 - Monitor: pending as of 2026-07-02 10:09 CST; ranking row still points to v221's 2026-07-02 09:38:13 result (`prof_sum=1818771.568us`).
+
+## v224 kfc-b1-workspace-pad
+
+- Change: keep v156's B1 onehot-B dense KFC hotcase and all-shape registration lifecycle, but reserve an extra 16 MiB before the per-block C tile in host workspace.
+- Rationale: the kernel writes dense C through `GetUserWorkspace(workspace)`. With `REGIST_MATMUL_OBJ` enabled, the KFC framework may consume a prefix of the raw workspace before the user region; v156 only allocated enough bytes for the C tile itself. This candidate isolates possible framework/user workspace overlap before changing the dense algorithm again.
+- Package: `IndexAdd_v224_kfc_b1_workspace_pad.zip`
+- SHA256: `72230bcb3aeca2be4ecc5def5afbba134000a93ff50f7d463b11f35a415f75ed`
+- Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `op_kernel/index_add.cpp` hash matches local source (`dba67ad8d9861421249536ee6861f9e70ee33f3394e59a0760622945036033e3`).
+- Submit: pending. Submit after v156 has either produced a true result or is intentionally overwritten.
