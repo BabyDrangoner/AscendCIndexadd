@@ -9,7 +9,19 @@
 - Package: `IndexAdd_v222_gatherb_shared_offsets_bd48.zip`
 - SHA256: `a08ea2c05a46c4c1ac44ae180e5b26e26d7a427ef611cfb245db335b2a54f649`
 - Verification: Docker/Lima build passed; top-level kernel source and run-package embedded `index_add.cpp` match (`f35b3cfd29328bb4e298bb71de3deb0e8fbc98ee9bb7c2394c28f6f6e8868805`).
-- Submit: pending.
+- Submit: 2026-07-02 09:51:37 CST, workId `IndexAdd_v222_gatherb_shared_offsets_bd48.zip`.
+- Official result: 2026-07-02 09:51:35 ranking row, full pass.
+
+```text
+Case1: Pass, Result: 46.328
+Case2: Pass, Result: 12574.032
+Case3: Pass, Result: 60760.632
+Case4: Pass, Result: 1729271.212
+Case5: Pass, Result: 15627.192
+prof_sum: 1818279.396
+```
+
+Conclusion: full pass and better than v221, but still in the same 1.729s Case4 band. Shared Gatherb offset construction is not the order-level bottleneck.
 
 ## Baseline bd40
 
