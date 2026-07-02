@@ -1,5 +1,16 @@
 # IndexAdd Versions
 
+## v222 gatherb-shared-offsets-bd48
+
+- Base: v216 gatherb final-reduce path.
+- Change: exact int8 Case4 keeps the stable two-tile Gatherb reduction, but builds the two 512-row offset tables only on core0, writes them plus 24 count/start metadata words to workspace, then uses `SyncAll` and GM copyback so every core reuses the same tables.
+- Rationale: profiling showed the hot path is scalar-heavy. This candidate removes duplicated per-core index scans and offset-table scalar construction without changing the main Gatherb/tree-reduce arithmetic.
+- Workspace: exact int8 Case4 increases user workspace from 4KB to 32KB; first 4KB is reserved for `SyncAll`, offset tables begin after that sync area.
+- Package: `IndexAdd_v222_gatherb_shared_offsets_bd48.zip`
+- SHA256: `a08ea2c05a46c4c1ac44ae180e5b26e26d7a427ef611cfb245db335b2a54f649`
+- Verification: Docker/Lima build passed; top-level kernel source and run-package embedded `index_add.cpp` match (`f35b3cfd29328bb4e298bb71de3deb0e8fbc98ee9bb7c2394c28f6f6e8868805`).
+- Submit: pending.
+
 ## Baseline bd40
 
 - Source: copied from `/Users/xiaolong.xu/workspace/华为算子比赛s9/op/IndexAdd`

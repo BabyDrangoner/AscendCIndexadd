@@ -23,6 +23,12 @@ constexpr uint32_t kCase4GatherbWidth = 16;
 constexpr uint32_t kCase4GatherbElems =
     kCase4MaskReduceTile * kCase4GatherbWidth;
 constexpr uint32_t kCase4GatherbOffsetStride = 1024;
+constexpr uint32_t kCase4GatherbSharedSyncWords = 1024;
+constexpr uint32_t kCase4GatherbSharedOffsetBase =
+    kCase4GatherbSharedSyncWords;
+constexpr uint32_t kCase4GatherbSharedMetaBase =
+    kCase4GatherbSharedOffsetBase + 2 * kCase4GatherbOffsetStride;
+constexpr uint32_t kCase4GatherbSharedMetaWords = 24;
 constexpr uint32_t kCase4MaskReduceElems =
     kCase4MaskReduceTile * kCase4MaskReduceWidth;
 constexpr uint32_t kCase4MaskReduceMaskBytes = kCase4MaskReduceElems / 8;
@@ -155,7 +161,8 @@ class IndexAddKernel {
 
     index32_gm_.SetGlobalBuffer((__gm__ int32_t*)index, index_len_);
     index64_gm_.SetGlobalBuffer((__gm__ int64_t*)index, index_len_);
-    workspace_i32_gm_.SetGlobalBuffer((__gm__ int32_t*)workspace, 1024);
+    workspace_i32_gm_.SetGlobalBuffer((__gm__ int32_t*)workspace, 8192);
+    workspace_u32_gm_.SetGlobalBuffer((__gm__ uint32_t*)workspace, 8192);
 
     const uint32_t rows = outer_ * axis_;
     const uint32_t work_units = rows * inner_tiles_;
@@ -1292,6 +1299,42 @@ class IndexAddKernel {
     }
   }
 
+  __aicore__ inline void StoreCase4GatherbMeta(
+      LocalTensor<uint32_t>& meta, const uint32_t t0_c0, const uint32_t t0_c1,
+      const uint32_t t0_c2, const uint32_t t0_c3, const uint32_t t0_c4,
+      const uint32_t t0_c5, const uint32_t t0_s0, const uint32_t t0_s1,
+      const uint32_t t0_s2, const uint32_t t0_s3, const uint32_t t0_s4,
+      const uint32_t t0_s5, const uint32_t t1_c0, const uint32_t t1_c1,
+      const uint32_t t1_c2, const uint32_t t1_c3, const uint32_t t1_c4,
+      const uint32_t t1_c5, const uint32_t t1_s0, const uint32_t t1_s1,
+      const uint32_t t1_s2, const uint32_t t1_s3, const uint32_t t1_s4,
+      const uint32_t t1_s5) {
+    meta.SetValue(0, t0_c0);
+    meta.SetValue(1, t0_c1);
+    meta.SetValue(2, t0_c2);
+    meta.SetValue(3, t0_c3);
+    meta.SetValue(4, t0_c4);
+    meta.SetValue(5, t0_c5);
+    meta.SetValue(6, t0_s0);
+    meta.SetValue(7, t0_s1);
+    meta.SetValue(8, t0_s2);
+    meta.SetValue(9, t0_s3);
+    meta.SetValue(10, t0_s4);
+    meta.SetValue(11, t0_s5);
+    meta.SetValue(12, t1_c0);
+    meta.SetValue(13, t1_c1);
+    meta.SetValue(14, t1_c2);
+    meta.SetValue(15, t1_c3);
+    meta.SetValue(16, t1_c4);
+    meta.SetValue(17, t1_c5);
+    meta.SetValue(18, t1_s0);
+    meta.SetValue(19, t1_s1);
+    meta.SetValue(20, t1_s2);
+    meta.SetValue(21, t1_s3);
+    meta.SetValue(22, t1_s4);
+    meta.SetValue(23, t1_s5);
+  }
+
   __aicore__ inline void ProcessCase4GatherbReduceI8() {
     constexpr uint32_t kPartialElems = 6 * 8 * kCase4GatherbWidth;
     LocalTensor<uint32_t> offsets = index32_buf_.Get<uint32_t>();
@@ -1304,25 +1347,80 @@ class IndexAddKernel {
     LocalTensor<int16_t> gathered_i16 = acc_buf_.Get<int16_t>();
     LocalTensor<int16_t> partial =
         index32_buf_.Get<int16_t>()[kCase4GatherbOffsetStride * 4];
+    LocalTensor<uint32_t> meta =
+        index32_buf_.Get<uint32_t>()[2 * kCase4GatherbOffsetStride];
     DataCopyPadParams pad{false, 0, 0, 0};
     DataCopyParams row_copy{1, 42, 0, 0};
     DataCopyParams src_copy{static_cast<uint16_t>(kCase4MaskReduceTile), 7, 0,
                             kCase4GatherbWidth - 7};
+    DataCopyParams offsets_copy{
+        1,
+        static_cast<uint16_t>(2 * kCase4GatherbOffsetStride *
+                              sizeof(uint32_t)),
+        0, 0};
+    DataCopyParams meta_copy{
+        1,
+        static_cast<uint16_t>(kCase4GatherbSharedMetaWords *
+                              sizeof(uint32_t)),
+        0, 0};
 
     uint32_t t0_c0, t0_c1, t0_c2, t0_c3, t0_c4, t0_c5;
     uint32_t t0_s0, t0_s1, t0_s2, t0_s3, t0_s4, t0_s5;
     uint32_t t1_c0, t1_c1, t1_c2, t1_c3, t1_c4, t1_c5;
     uint32_t t1_s0, t1_s1, t1_s2, t1_s3, t1_s4, t1_s5;
-    RawCopyIndexTile(idx_values, 0, 1024);
-    BuildCase4GatherbOffsets(offsets, idx_values, 0, 0, t0_c0, t0_c1, t0_c2,
-                             t0_c3, t0_c4, t0_c5, t0_s0, t0_s1, t0_s2,
-                             t0_s3, t0_s4, t0_s5);
-    BuildCase4GatherbOffsets(offsets, idx_values, 1, kCase4GatherbOffsetStride,
-                             t1_c0, t1_c1, t1_c2, t1_c3, t1_c4, t1_c5,
-                             t1_s0, t1_s1, t1_s2, t1_s3, t1_s4, t1_s5);
-
     const uint32_t core_num = GetBlockNum();
     const uint32_t cid = GetBlockIdx();
+    if (cid == 0) {
+      RawCopyIndexTile(idx_values, 0, 1024);
+      BuildCase4GatherbOffsets(offsets, idx_values, 0, 0, t0_c0, t0_c1,
+                               t0_c2, t0_c3, t0_c4, t0_c5, t0_s0, t0_s1,
+                               t0_s2, t0_s3, t0_s4, t0_s5);
+      BuildCase4GatherbOffsets(offsets, idx_values, 1,
+                               kCase4GatherbOffsetStride, t1_c0, t1_c1,
+                               t1_c2, t1_c3, t1_c4, t1_c5, t1_s0, t1_s1,
+                               t1_s2, t1_s3, t1_s4, t1_s5);
+      StoreCase4GatherbMeta(meta, t0_c0, t0_c1, t0_c2, t0_c3, t0_c4, t0_c5,
+                            t0_s0, t0_s1, t0_s2, t0_s3, t0_s4, t0_s5,
+                            t1_c0, t1_c1, t1_c2, t1_c3, t1_c4, t1_c5,
+                            t1_s0, t1_s1, t1_s2, t1_s3, t1_s4, t1_s5);
+      DataCopyPad(workspace_u32_gm_[kCase4GatherbSharedOffsetBase], offsets,
+                  offsets_copy);
+      DataCopyPad(workspace_u32_gm_[kCase4GatherbSharedMetaBase], meta,
+                  meta_copy);
+      PipeBarrier<PIPE_MTE3>();
+    }
+    LocalTensor<int32_t> sync_ub = src_cast_buf_.Get<int32_t>();
+    SyncAll<true>(workspace_i32_gm_, sync_ub, static_cast<int32_t>(core_num));
+    DataCopyPad(offsets, workspace_u32_gm_[kCase4GatherbSharedOffsetBase],
+                offsets_copy, pad);
+    DataCopyPad(meta, workspace_u32_gm_[kCase4GatherbSharedMetaBase],
+                meta_copy, pad);
+    PipeBarrier<PIPE_MTE2>();
+    t0_c0 = meta.GetValue(0);
+    t0_c1 = meta.GetValue(1);
+    t0_c2 = meta.GetValue(2);
+    t0_c3 = meta.GetValue(3);
+    t0_c4 = meta.GetValue(4);
+    t0_c5 = meta.GetValue(5);
+    t0_s0 = meta.GetValue(6);
+    t0_s1 = meta.GetValue(7);
+    t0_s2 = meta.GetValue(8);
+    t0_s3 = meta.GetValue(9);
+    t0_s4 = meta.GetValue(10);
+    t0_s5 = meta.GetValue(11);
+    t1_c0 = meta.GetValue(12);
+    t1_c1 = meta.GetValue(13);
+    t1_c2 = meta.GetValue(14);
+    t1_c3 = meta.GetValue(15);
+    t1_c4 = meta.GetValue(16);
+    t1_c5 = meta.GetValue(17);
+    t1_s0 = meta.GetValue(18);
+    t1_s1 = meta.GetValue(19);
+    t1_s2 = meta.GetValue(20);
+    t1_s3 = meta.GetValue(21);
+    t1_s4 = meta.GetValue(22);
+    t1_s5 = meta.GetValue(23);
+
     const uint32_t outer_groups = outer_ >> 1;
     for (uint32_t group_id = cid; group_id < outer_groups; group_id += core_num) {
       const uint32_t outer_id = group_id << 1;
@@ -4656,6 +4754,7 @@ class IndexAddKernel {
   GlobalTensor<int32_t> index32_gm_;
   GlobalTensor<int64_t> index64_gm_;
   GlobalTensor<int32_t> workspace_i32_gm_;
+  GlobalTensor<uint32_t> workspace_u32_gm_;
   TPipe pipe_;
   TBuf<TPosition::VECCALC> index32_buf_;
   TBuf<TPosition::VECCALC> index64_buf_;

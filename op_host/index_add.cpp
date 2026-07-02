@@ -267,7 +267,7 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
   const bool exact_i8_case4_idx32 =
       dtype_mode == 1 && index_dtype_size == 4 && ndim == 6 && dim == 4 &&
       outer == 120 && axis == 6 && inner == 7 && index_len == 1024;
-  workspace[0] = exact_i8_case4_idx32 ? 4096 : 0;
+  workspace[0] = exact_i8_case4_idx32 ? 32768 : 0;
 
   tiling.SaveToBuffer(context->GetRawTilingData()->GetData(),
                       context->GetRawTilingData()->GetCapacity());
