@@ -325,7 +325,8 @@ Case5: Run failed
 - Package: `IndexAdd_v225_kfc_b1_m64_workspace_pad.zip`
 - SHA256: `4c37cb152f054362333ec1bbbb8d7367da4d23c06ede1f9f88ef85a4abd38f5b`
 - Verification: Docker build passed; zip top-level host/kernel sources match local source; run-package embedded `op_kernel/index_add.cpp` matches local source (`13adace5407fa19645ddff00f2bab9f4e691d74d13ce6131133825eb7721d55e`).
-- Submit: pending; build and submit only after package verification.
+- Submit: 2026-07-02 10:29:45 CST, workId `IndexAdd_v227_kfc_b1_m256_workspace_pad.zip`.
+- Monitor: pending as of 2026-07-02 10:29 CST; ranking row still points to the older 2026-07-02 10:00:27 result (`prof_sum=1901409.932us`).
 
 ## v226 kfc-b1-m128-workspace-pad
 
