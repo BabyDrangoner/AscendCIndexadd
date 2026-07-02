@@ -326,3 +326,12 @@ Case5: Run failed
 - SHA256: `4c37cb152f054362333ec1bbbb8d7367da4d23c06ede1f9f88ef85a4abd38f5b`
 - Verification: Docker build passed; zip top-level host/kernel sources match local source; run-package embedded `op_kernel/index_add.cpp` matches local source (`13adace5407fa19645ddff00f2bab9f4e691d74d13ce6131133825eb7721d55e`).
 - Submit: pending; build and submit only after package verification.
+
+## v226 kfc-b1-m128-workspace-pad
+
+- Change: keep v225's workspace-reserved KFC B1 path, but increase the dense Case4 Matmul M tile from 64 to 128 rows.
+- Rationale: M=128 reduces the number of Case4 Matmul commands to one quarter of v224/M32. This tests whether the remaining cost is KFC command scheduling/B preparation rather than cube tile occupancy.
+- Package: `IndexAdd_v226_kfc_b1_m128_workspace_pad.zip`
+- SHA256: `cce73c3ac1e4f6c6675c36d97ea083950d47fee96c1e2658b63523925e4fce59`
+- Verification: Docker build passed; zip top-level host/kernel sources match local source; run-package embedded `op_kernel/index_add.cpp` matches local source (`cf0f2c558f33df28f064b8da7b8203cfc9f79548ca17e12f0bd6a3193ec0e76f`).
+- Submit: pending; build and submit only after package verification.
