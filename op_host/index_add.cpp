@@ -15,6 +15,8 @@ constexpr uint32_t kGroupRows = 16;
 constexpr uint32_t kWideGroupRows = 32;
 constexpr uint32_t kCase4DenseM = 1024;
 constexpr uint32_t kCase4DenseN = 16;
+constexpr uint32_t kCase4DenseK = 1024 * 7;
+constexpr uint32_t kCase4DenseBBytes = kCase4DenseK * kCase4DenseN;
 constexpr uint32_t kSmallInnerGroupRows = 256;
 constexpr uint32_t kInner1RowCap = 4096;
 
@@ -269,7 +271,8 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context) {
   constexpr size_t kKfcWorkspaceReserve = 16u * 1024u * 1024u;
   workspace[0] = kKfcWorkspaceReserve +
                  static_cast<size_t>(block_dim) *
-                     (kCase4DenseM * kCase4DenseN * sizeof(int32_t));
+                     (kCase4DenseBBytes +
+                      kCase4DenseM * kCase4DenseN * sizeof(int32_t));
 
   tiling.SaveToBuffer(context->GetRawTilingData()->GetData(),
                       context->GetRawTilingData()->GetCapacity());

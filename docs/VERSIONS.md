@@ -364,3 +364,12 @@ Case5: Run failed
 - Verification: Docker build passed; zip top-level host/kernel sources match local source; run-package embedded `op_kernel/index_add.cpp` matches local source (`6da5167981fe204de3d26e3c941c256acf5e4cde71b4fd5fefdde78415fb8dfc`).
 - Submit: 2026-07-02 10:29:45 CST, workId `IndexAdd_v227_kfc_b1_m256_workspace_pad.zip`.
 - Monitor: pending as of 2026-07-02 10:38 CST; ranking row still points to the older 2026-07-02 10:00:27 result (`prof_sum=1901409.932us`). Superseded by v229 before a true v227 result appeared.
+
+## v230 kfc-gmb-m1024-workspace-pad
+
+- Change: keep v229's M1024/24-work-item KFC shape, but move the onehot B operand from B1 local memory to per-block GM workspace. B is zeroed with 16KB DMA chunks, onehot entries are written into GM, and `DataCacheCleanAndInvalid` runs before `SetTensorB`.
+- Rationale: v229 minimizes KFC command count but still depends on a 112KB B1 buffer. If B1 capacity/lifecycle is the runtime failure point, this GM-B variant should isolate it while preserving the same dense reduction algorithm and occupancy.
+- Package: `IndexAdd_v230_kfc_gmb_m1024_workspace_pad.zip`
+- SHA256: `154a442571bec02cfd22fe111b62b4f30912b808756b68b59caebc7e27061897`
+- Verification: Docker build passed; zip top-level host/kernel sources match local source; run-package embedded `op_kernel/index_add.cpp` matches local source (`827be8298aeb8fb5d76eac9e10df5e617fd12de8735c665db7752afa91136694`).
+- Submit: pending; build and submit only after package verification.
