@@ -660,4 +660,4 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - Package: `IndexAdd_v221_gatherb_full1024_bd30.zip`
 - SHA256: `332a64235c057dcc715caabd51bf9eaaeb035f3e42dde10644baf2a329fb164e`
 - Verification: Docker build passed; top-level host/kernel source matches the zip.
-- Submit: pending official upload.
+- Submit: uploaded successfully at `2026-07-02 09:38:15`; monitor still shows the previous v220 ranked result from `2026/07/02 09:28:40`, so v221 evaluation is pending/ranking not refreshed yet.
