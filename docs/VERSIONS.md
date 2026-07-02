@@ -634,3 +634,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `32e333a99e1d117a078ee14ce3ee862fe01a588c3eec585b3245faedb7cdd73a`
 - Verification: Docker build passed; top-level host/kernel source matches the zip.
 - Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).
+
+## v219 gatherb-full1024-bd48
+
+- Change: keep v216's exact int8 Case4 Gatherb/finalreduce/writeback semantics, but process the full 1024-row source slice in one padded 1024x16 local tile instead of two 512-row tiles.
+- Rationale: this halves the normal Case4 Gatherb/Cast/reduce call count from 12 bucket reductions per outer-pair to 6 while preserving scalar int8 wraparound writeback. Buckets larger than 512 rows are still reduced in safe chunks.
+- Package: `IndexAdd_v219_gatherb_full1024_bd48.zip`
+- SHA256: `3624b9b6871c6d9b596141474ecb8b5a8b68d94698708b643de59ab92c29d2c0`
+- Verification: Docker build passed; top-level host/kernel source matches the zip.
+- Submit: not submitted; current HiAscend cookie is expired (`401 未登录`).

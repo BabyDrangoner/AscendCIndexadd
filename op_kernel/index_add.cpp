@@ -22,7 +22,11 @@ constexpr uint32_t kCase4MaskReduceWidth = 8;
 constexpr uint32_t kCase4GatherbWidth = 16;
 constexpr uint32_t kCase4GatherbElems =
     kCase4MaskReduceTile * kCase4GatherbWidth;
-constexpr uint32_t kCase4GatherbOffsetStride = 1024;
+constexpr uint32_t kCase4GatherbFullTile = 1024;
+constexpr uint32_t kCase4GatherbFullElems =
+    kCase4GatherbFullTile * kCase4GatherbWidth;
+constexpr uint32_t kCase4GatherbMaxRows = 512;
+constexpr uint32_t kCase4GatherbOffsetStride = 1088;
 constexpr uint32_t kCase4MaskReduceElems =
     kCase4MaskReduceTile * kCase4MaskReduceWidth;
 constexpr uint32_t kCase4MaskReduceMaskBytes = kCase4MaskReduceElems / 8;
@@ -170,7 +174,9 @@ class IndexAddKernel {
     pipe_.InitBuffer(src_buf_, buf_bytes);
     pipe_.InitBuffer(out_buf_, buf_bytes);
     pipe_.InitBuffer(acc_buf_, buf_bytes);
-    pipe_.InitBuffer(src_cast_buf_, buf_bytes);
+    const uint32_t src_cast_bytes =
+        UseCase4GatherbReduceI8Path() ? (buf_bytes << 1) : buf_bytes;
+    pipe_.InitBuffer(src_cast_buf_, src_cast_bytes);
     if (index_dtype_size_ == 8) {
       pipe_.InitBuffer(index64_buf_, AlignUp32(kIndexTileBytes));
     } else {
@@ -1174,6 +1180,16 @@ class IndexAddKernel {
     return 512;
   }
 
+  __aicore__ inline uint32_t Case4GatherChunkPaddedRows(uint32_t rows) const {
+    uint32_t padded = 0;
+    while (rows > 0) {
+      const uint32_t take = MinU32(rows, kCase4GatherbMaxRows);
+      padded += Case4GatherPaddedRows(take);
+      rows -= take;
+    }
+    return padded;
+  }
+
   __aicore__ inline void BuildCase4GatherbOffsets(
       LocalTensor<uint32_t>& offsets, LocalTensor<int32_t>& idx_values,
       const uint32_t tile, const uint32_t off_base, uint32_t& c0,
@@ -1235,6 +1251,65 @@ class IndexAddKernel {
     }
   }
 
+  __aicore__ inline void BuildCase4GatherbOffsetsFull(
+      LocalTensor<uint32_t>& offsets, LocalTensor<int32_t>& idx_values,
+      uint32_t& c0, uint32_t& c1, uint32_t& c2, uint32_t& c3,
+      uint32_t& c4, uint32_t& c5, uint32_t& s0, uint32_t& s1,
+      uint32_t& s2, uint32_t& s3, uint32_t& s4, uint32_t& s5) {
+    c0 = 0;
+    c1 = 0;
+    c2 = 0;
+    c3 = 0;
+    c4 = 0;
+    c5 = 0;
+    for (uint32_t i = 0; i < kCase4GatherbFullTile; ++i) {
+      switch (static_cast<uint32_t>(idx_values.GetValue(i))) {
+        case 0: ++c0; break;
+        case 1: ++c1; break;
+        case 2: ++c2; break;
+        case 3: ++c3; break;
+        case 4: ++c4; break;
+        case 5: ++c5; break;
+        default: break;
+      }
+    }
+
+    const uint32_t p0 = Case4GatherChunkPaddedRows(c0);
+    const uint32_t p1 = Case4GatherChunkPaddedRows(c1);
+    const uint32_t p2 = Case4GatherChunkPaddedRows(c2);
+    const uint32_t p3 = Case4GatherChunkPaddedRows(c3);
+    const uint32_t p4 = Case4GatherChunkPaddedRows(c4);
+    s0 = 0;
+    s1 = s0 + p0;
+    s2 = s1 + p1;
+    s3 = s2 + p2;
+    s4 = s3 + p3;
+    s5 = s4 + p4;
+    uint32_t w0 = s0;
+    uint32_t w1 = s1;
+    uint32_t w2 = s2;
+    uint32_t w3 = s3;
+    uint32_t w4 = s4;
+    uint32_t w5 = s5;
+
+    for (uint32_t i = 0; i < kCase4GatherbOffsetStride; ++i) {
+      offsets.SetValue(i, 0);
+    }
+    for (uint32_t i = 0; i < kCase4GatherbFullTile; ++i) {
+      const uint32_t row_off =
+          i * kCase4GatherbWidth * static_cast<uint32_t>(sizeof(half));
+      switch (static_cast<uint32_t>(idx_values.GetValue(i))) {
+        case 0: offsets.SetValue(w0++, row_off); break;
+        case 1: offsets.SetValue(w1++, row_off); break;
+        case 2: offsets.SetValue(w2++, row_off); break;
+        case 3: offsets.SetValue(w3++, row_off); break;
+        case 4: offsets.SetValue(w4++, row_off); break;
+        case 5: offsets.SetValue(w5++, row_off); break;
+        default: break;
+      }
+    }
+  }
+
   __aicore__ inline void ReduceCase4GatherbRows(
       LocalTensor<int16_t>& partial, LocalTensor<uint16_t>& gathered_u16,
       LocalTensor<half>& gathered_h, LocalTensor<int16_t>& gathered_i16,
@@ -1273,6 +1348,21 @@ class IndexAddKernel {
     PipeBarrier<PIPE_V>();
   }
 
+  __aicore__ inline void ReduceCase4GatherbRowsChunked(
+      LocalTensor<int16_t>& partial, LocalTensor<uint16_t>& gathered_u16,
+      LocalTensor<half>& gathered_h, LocalTensor<int16_t>& gathered_i16,
+      LocalTensor<uint16_t>& src_u16, LocalTensor<uint32_t>& offsets,
+      const uint32_t start, const uint32_t rows, const uint32_t axis_id) {
+    uint32_t done = 0;
+    while (done < rows) {
+      const uint32_t take = MinU32(rows - done, kCase4GatherbMaxRows);
+      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
+                             src_u16, offsets, 0, start + done, take,
+                             axis_id);
+      done += Case4GatherPaddedRows(take);
+    }
+  }
+
   __aicore__ inline void FinalReduceCase4GatherbPartial(
       LocalTensor<int16_t>& partial) {
     for (uint32_t axis_id = 0; axis_id < 6; ++axis_id) {
@@ -1306,20 +1396,14 @@ class IndexAddKernel {
         index32_buf_.Get<int16_t>()[kCase4GatherbOffsetStride * 4];
     DataCopyPadParams pad{false, 0, 0, 0};
     DataCopyParams row_copy{1, 42, 0, 0};
-    DataCopyParams src_copy{static_cast<uint16_t>(kCase4MaskReduceTile), 7, 0,
+    DataCopyParams src_copy{static_cast<uint16_t>(kCase4GatherbFullTile), 7, 0,
                             kCase4GatherbWidth - 7};
 
-    uint32_t t0_c0, t0_c1, t0_c2, t0_c3, t0_c4, t0_c5;
-    uint32_t t0_s0, t0_s1, t0_s2, t0_s3, t0_s4, t0_s5;
-    uint32_t t1_c0, t1_c1, t1_c2, t1_c3, t1_c4, t1_c5;
-    uint32_t t1_s0, t1_s1, t1_s2, t1_s3, t1_s4, t1_s5;
+    uint32_t c0, c1, c2, c3, c4, c5;
+    uint32_t s0, s1, s2, s3, s4, s5;
     RawCopyIndexTile(idx_values, 0, 1024);
-    BuildCase4GatherbOffsets(offsets, idx_values, 0, 0, t0_c0, t0_c1, t0_c2,
-                             t0_c3, t0_c4, t0_c5, t0_s0, t0_s1, t0_s2,
-                             t0_s3, t0_s4, t0_s5);
-    BuildCase4GatherbOffsets(offsets, idx_values, 1, kCase4GatherbOffsetStride,
-                             t1_c0, t1_c1, t1_c2, t1_c3, t1_c4, t1_c5,
-                             t1_s0, t1_s1, t1_s2, t1_s3, t1_s4, t1_s5);
+    BuildCase4GatherbOffsetsFull(offsets, idx_values, c0, c1, c2, c3, c4, c5,
+                                 s0, s1, s2, s3, s4, s5);
 
     const uint32_t core_num = GetBlockNum();
     const uint32_t cid = GetBlockIdx();
@@ -1335,49 +1419,20 @@ class IndexAddKernel {
       DataCopyPad(src_i8[8], source_i8_gm_[SourceOffset(outer_id + 1, 0, 0)],
                   src_copy, pad);
       PipeBarrier<PIPE_MTE2>();
-      Cast(src_h, src_i8, RoundMode::CAST_NONE, kCase4GatherbElems);
+      Cast(src_h, src_i8, RoundMode::CAST_NONE, kCase4GatherbFullElems);
       PipeBarrier<PIPE_V>();
-      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
-                             src_u16, offsets, 0, t0_s0, t0_c0, 0);
-      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
-                             src_u16, offsets, 0, t0_s1, t0_c1, 1);
-      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
-                             src_u16, offsets, 0, t0_s2, t0_c2, 2);
-      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
-                             src_u16, offsets, 0, t0_s3, t0_c3, 3);
-      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
-                             src_u16, offsets, 0, t0_s4, t0_c4, 4);
-      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
-                             src_u16, offsets, 0, t0_s5, t0_c5, 5);
-
-      DataCopyPad(src_i8,
-                  source_i8_gm_[SourceOffset(outer_id, kCase4MaskReduceTile, 0)],
-                  src_copy, pad);
-      DataCopyPad(src_i8[8],
-                  source_i8_gm_[SourceOffset(outer_id + 1,
-                                             kCase4MaskReduceTile, 0)],
-                  src_copy, pad);
-      PipeBarrier<PIPE_MTE2>();
-      Cast(src_h, src_i8, RoundMode::CAST_NONE, kCase4GatherbElems);
-      PipeBarrier<PIPE_V>();
-      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
-                             src_u16, offsets, kCase4GatherbOffsetStride,
-                             t1_s0, t1_c0, 0);
-      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
-                             src_u16, offsets, kCase4GatherbOffsetStride,
-                             t1_s1, t1_c1, 1);
-      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
-                             src_u16, offsets, kCase4GatherbOffsetStride,
-                             t1_s2, t1_c2, 2);
-      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
-                             src_u16, offsets, kCase4GatherbOffsetStride,
-                             t1_s3, t1_c3, 3);
-      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
-                             src_u16, offsets, kCase4GatherbOffsetStride,
-                             t1_s4, t1_c4, 4);
-      ReduceCase4GatherbRows(partial, gathered_u16, gathered_h, gathered_i16,
-                             src_u16, offsets, kCase4GatherbOffsetStride,
-                             t1_s5, t1_c5, 5);
+      ReduceCase4GatherbRowsChunked(partial, gathered_u16, gathered_h,
+                                    gathered_i16, src_u16, offsets, s0, c0, 0);
+      ReduceCase4GatherbRowsChunked(partial, gathered_u16, gathered_h,
+                                    gathered_i16, src_u16, offsets, s1, c1, 1);
+      ReduceCase4GatherbRowsChunked(partial, gathered_u16, gathered_h,
+                                    gathered_i16, src_u16, offsets, s2, c2, 2);
+      ReduceCase4GatherbRowsChunked(partial, gathered_u16, gathered_h,
+                                    gathered_i16, src_u16, offsets, s3, c3, 3);
+      ReduceCase4GatherbRowsChunked(partial, gathered_u16, gathered_h,
+                                    gathered_i16, src_u16, offsets, s4, c4, 4);
+      ReduceCase4GatherbRowsChunked(partial, gathered_u16, gathered_h,
+                                    gathered_i16, src_u16, offsets, s5, c5, 5);
       FinalReduceCase4GatherbPartial(partial);
 
       DataCopyPad(src_i8, input_i8_gm_[InputOffset(outer_id, 0, 0)], row_copy,
