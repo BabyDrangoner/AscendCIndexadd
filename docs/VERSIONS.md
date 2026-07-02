@@ -571,4 +571,5 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - Package: `IndexAdd_v191_pack16_paircode.zip`
 - SHA256: `b338eeb16b24fe43845178409552a6b51786897b214c0cf7658f3c08da0bfb3f`
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
-- Submit: not submitted.
+- Submit: 2026-07-02 09:54:54 CST, workId `IndexAdd_v191_pack16_paircode.zip`.
+- Official result: pending; as of 09:55 CST the ranking row still pointed to v221's `2026/07/02 09:38:13` result (`prof_sum=1818771.568us`).
