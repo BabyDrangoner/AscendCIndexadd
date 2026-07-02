@@ -652,3 +652,12 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - SHA256: `659c9fc1d117e0aa1b58fc54e8e2cf3eed02756ec8a62fa7ac6d94f2942d2714`
 - Verification: Docker build passed; top-level host/kernel source matches the zip.
 - Submit: uploaded successfully at `2026-07-02 09:28:41`; monitor still shows the previous ranked result from `2026/07/01 21:34:42`, so v220 evaluation is pending/ranking not refreshed yet.
+
+## v221 gatherb-full1024-bd30
+
+- Change: keep v220's full-1024 Gatherb path and safe 2048-row offset stride, but reduce the exact int8 Case4 block cap from 48 to 30.
+- Rationale: compare whether fewer duplicated per-core offset builds outweigh lower parallelism for the 60 outer-pair groups in Case4.
+- Package: `IndexAdd_v221_gatherb_full1024_bd30.zip`
+- SHA256: `332a64235c057dcc715caabd51bf9eaaeb035f3e42dde10644baf2a329fb164e`
+- Verification: Docker build passed; top-level host/kernel source matches the zip.
+- Submit: pending official upload.
