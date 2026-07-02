@@ -317,3 +317,12 @@ Case5: Run failed
 - Verification: Docker build passed; top-level host/kernel sources match the zip; run-package embedded `op_kernel/index_add.cpp` hash matches local source (`dba67ad8d9861421249536ee6861f9e70ee33f3394e59a0760622945036033e3`).
 - Submit: 2026-07-02 10:17:23 CST, workId `IndexAdd_v224_kfc_b1_workspace_pad.zip`.
 - Monitor: pending as of 2026-07-02 10:17 CST; ranking row still points to the older 2026-07-02 09:54:52 result (`prof_sum=1901384.62us`).
+
+## v225 kfc-b1-m64-workspace-pad
+
+- Change: keep v224's KFC workspace reserve and B1 onehot-B path, but increase the dense Case4 Matmul M tile from 32 to 64 rows. Host work scheduling and C workspace sizing are updated to the same M tile.
+- Rationale: if v224 fixes the KFC workspace lifecycle, M=64 halves the Case4 Matmul command count versus M=32 while keeping the same K=1024*7 and N=16 tiling. This is the next low-risk cube-side A/B candidate before trying larger M or changing B placement.
+- Package: `IndexAdd_v225_kfc_b1_m64_workspace_pad.zip`
+- SHA256: `4c37cb152f054362333ec1bbbb8d7367da4d23c06ede1f9f88ef85a4abd38f5b`
+- Verification: Docker build passed; zip top-level host/kernel sources match local source; run-package embedded `op_kernel/index_add.cpp` matches local source (`13adace5407fa19645ddff00f2bab9f4e691d74d13ce6131133825eb7721d55e`).
+- Submit: pending; build and submit only after package verification.
