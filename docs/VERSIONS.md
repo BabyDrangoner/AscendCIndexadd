@@ -328,6 +328,15 @@ Case5: Run failed
 - Submit: 2026-07-02 10:29:45 CST, workId `IndexAdd_v227_kfc_b1_m256_workspace_pad.zip`.
 - Monitor: pending as of 2026-07-02 10:29 CST; ranking row still points to the older 2026-07-02 10:00:27 result (`prof_sum=1901409.932us`).
 
+## v228 kfc-b1-m512-workspace-pad
+
+- Change: keep v227's workspace-reserved KFC B1 path, but increase the dense Case4 Matmul M tile from 256 to 512 rows.
+- Rationale: M=512 reduces the inferred hotcase to 48 Matmul commands. This tests the limit of reducing KFC command scheduling and B-preparation overhead before tile size starts hurting cube efficiency or runtime feasibility.
+- Package: `IndexAdd_v228_kfc_b1_m512_workspace_pad.zip`
+- SHA256: `c423320b89489afc3900a79a8405c150788ac3908d27aae8ed428029ba9b58ce`
+- Verification: Docker build passed; zip top-level host/kernel sources match local source; run-package embedded `op_kernel/index_add.cpp` matches local source (`2bcdb689bda412c2602a75312c8ed9e04b8f45c06204263dc7c1f70bc16305d1`).
+- Submit: pending; build and submit only after package verification.
+
 ## v226 kfc-b1-m128-workspace-pad
 
 - Change: keep v225's workspace-reserved KFC B1 path, but increase the dense Case4 Matmul M tile from 64 to 128 rows.
