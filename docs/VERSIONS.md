@@ -651,4 +651,4 @@ Conclusion: full pass but worse than v121 by 162.42us and worse than v142 by 142
 - Package: `IndexAdd_v220_gatherb_full1024_stride2048.zip`
 - SHA256: `659c9fc1d117e0aa1b58fc54e8e2cf3eed02756ec8a62fa7ac6d94f2942d2714`
 - Verification: Docker build passed; top-level host/kernel source matches the zip.
-- Submit: pending official upload.
+- Submit: uploaded successfully at `2026-07-02 09:28:41`; monitor still shows the previous ranked result from `2026/07/01 21:34:42`, so v220 evaluation is pending/ranking not refreshed yet.
