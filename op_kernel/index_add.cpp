@@ -1720,7 +1720,10 @@ class IndexAddKernel {
     constexpr uint32_t kSlotBytes = 4096;
     constexpr uint32_t kSlotU64 = kSlotBytes >> 3;
     LocalTensor<int32_t> idx = index32_buf_.Get<int32_t>();
-    LocalTensor<uint32_t> pair_code = index32_buf_.Get<uint32_t>()[1024];
+    LocalTensor<uint32_t> bucket_pos = index32_buf_.Get<uint32_t>()[1024];
+    LocalTensor<uint32_t> bucket_count = index32_buf_.Get<uint32_t>()[1536];
+    LocalTensor<uint32_t> bucket_start = index32_buf_.Get<uint32_t>()[1608];
+    LocalTensor<uint32_t> bucket_cursor = index32_buf_.Get<uint32_t>()[1680];
     LocalTensor<int8_t> src0 = src_buf_.Get<int8_t>();
     LocalTensor<int8_t> src1 = src_buf_.Get<int8_t>()[kSlotBytes];
     LocalTensor<int8_t> src2 = src_buf_.Get<int8_t>()[kSlotBytes * 2];
@@ -1762,10 +1765,36 @@ class IndexAddKernel {
     const uint32_t core_num = GetBlockNum();
     const uint32_t cid = GetBlockIdx();
     RawCopyIndexTile(idx, 0, 1024);
-    for (uint32_t p = 0; p < 512; ++p) {
-      const uint32_t r0 = static_cast<uint32_t>(idx.GetValue(p << 1));
-      const uint32_t r1 = static_cast<uint32_t>(idx.GetValue((p << 1) + 1));
-      pair_code.SetValue(p, r0 * 6 + r1);
+    for (uint32_t i = 0; i < 72; ++i) {
+      bucket_count.SetValue(i, 0);
+    }
+    for (uint32_t tile = 0; tile < 2; ++tile) {
+      const uint32_t pair_base = tile * 256;
+      const uint32_t bucket_base = tile * 36;
+      for (uint32_t p = 0; p < 256; ++p) {
+        const uint32_t gp = pair_base + p;
+        const uint32_t r0 = static_cast<uint32_t>(idx.GetValue(gp << 1));
+        const uint32_t r1 = static_cast<uint32_t>(idx.GetValue((gp << 1) + 1));
+        const uint32_t code = r0 * 6 + r1;
+        bucket_count.SetValue(bucket_base + code,
+                              bucket_count.GetValue(bucket_base + code) + 1);
+      }
+      uint32_t write = pair_base;
+      for (uint32_t code = 0; code < 36; ++code) {
+        const uint32_t bucket_id = bucket_base + code;
+        bucket_start.SetValue(bucket_id, write);
+        bucket_cursor.SetValue(bucket_id, write);
+        write += bucket_count.GetValue(bucket_id);
+      }
+      for (uint32_t p = 0; p < 256; ++p) {
+        const uint32_t gp = pair_base + p;
+        const uint32_t r0 = static_cast<uint32_t>(idx.GetValue(gp << 1));
+        const uint32_t r1 = static_cast<uint32_t>(idx.GetValue((gp << 1) + 1));
+        const uint32_t bucket_id = bucket_base + r0 * 6 + r1;
+        const uint32_t pos = bucket_cursor.GetValue(bucket_id);
+        bucket_pos.SetValue(pos, p);
+        bucket_cursor.SetValue(bucket_id, pos + 1);
+      }
     }
 
     for (uint32_t group = cid; group < groups; group += core_num) {
@@ -1859,9 +1888,7 @@ class IndexAddKernel {
                     src_copy, pad);
         PipeBarrier<PIPE_MTE2>();
 
-        for (uint32_t i = 0; i < kTile; i += 2) {
-          const uint32_t src_off0 = i * 7;
-          const uint32_t src_off1 = src_off0 + 7;
+        const uint32_t tile_id = base >> 9;
 #define ADD_I8P16_PACK(P, R, V) \
           do { \
             P##R = AddPackedI8x7(P##R, V); \
@@ -1898,50 +1925,58 @@ class IndexAddKernel {
             ADD_I8P16_ROW16_AT(R0, src_off0); \
             ADD_I8P16_ROW16_AT(R1, src_off1); \
           } while (0)
-          const uint32_t code = pair_code.GetValue((base + i) >> 1);
-          switch (code) {
-            case 0: ADD_I8P16_PAIR2(0, 0); break;
-            case 1: ADD_I8P16_PAIR2(0, 1); break;
-            case 2: ADD_I8P16_PAIR2(0, 2); break;
-            case 3: ADD_I8P16_PAIR2(0, 3); break;
-            case 4: ADD_I8P16_PAIR2(0, 4); break;
-            case 5: ADD_I8P16_PAIR2(0, 5); break;
-            case 6: ADD_I8P16_PAIR2(1, 0); break;
-            case 7: ADD_I8P16_PAIR2(1, 1); break;
-            case 8: ADD_I8P16_PAIR2(1, 2); break;
-            case 9: ADD_I8P16_PAIR2(1, 3); break;
-            case 10: ADD_I8P16_PAIR2(1, 4); break;
-            case 11: ADD_I8P16_PAIR2(1, 5); break;
-            case 12: ADD_I8P16_PAIR2(2, 0); break;
-            case 13: ADD_I8P16_PAIR2(2, 1); break;
-            case 14: ADD_I8P16_PAIR2(2, 2); break;
-            case 15: ADD_I8P16_PAIR2(2, 3); break;
-            case 16: ADD_I8P16_PAIR2(2, 4); break;
-            case 17: ADD_I8P16_PAIR2(2, 5); break;
-            case 18: ADD_I8P16_PAIR2(3, 0); break;
-            case 19: ADD_I8P16_PAIR2(3, 1); break;
-            case 20: ADD_I8P16_PAIR2(3, 2); break;
-            case 21: ADD_I8P16_PAIR2(3, 3); break;
-            case 22: ADD_I8P16_PAIR2(3, 4); break;
-            case 23: ADD_I8P16_PAIR2(3, 5); break;
-            case 24: ADD_I8P16_PAIR2(4, 0); break;
-            case 25: ADD_I8P16_PAIR2(4, 1); break;
-            case 26: ADD_I8P16_PAIR2(4, 2); break;
-            case 27: ADD_I8P16_PAIR2(4, 3); break;
-            case 28: ADD_I8P16_PAIR2(4, 4); break;
-            case 29: ADD_I8P16_PAIR2(4, 5); break;
-            case 30: ADD_I8P16_PAIR2(5, 0); break;
-            case 31: ADD_I8P16_PAIR2(5, 1); break;
-            case 32: ADD_I8P16_PAIR2(5, 2); break;
-            case 33: ADD_I8P16_PAIR2(5, 3); break;
-            case 34: ADD_I8P16_PAIR2(5, 4); break;
-            case 35: ADD_I8P16_PAIR2(5, 5); break;
-            default: break;
-          }
+#define RUN_I8P16_BUCKET(CODE, R0, R1) \
+          do { \
+            const uint32_t bucket_id = tile_id * 36 + (CODE); \
+            const uint32_t b_start = bucket_start.GetValue(bucket_id); \
+            const uint32_t b_count = bucket_count.GetValue(bucket_id); \
+            for (uint32_t bi = 0; bi < b_count; ++bi) { \
+              const uint32_t pair_pos = bucket_pos.GetValue(b_start + bi); \
+              const uint32_t src_off0 = (pair_pos << 1) * 7; \
+              const uint32_t src_off1 = src_off0 + 7; \
+              ADD_I8P16_PAIR2(R0, R1); \
+            } \
+          } while (0)
+        RUN_I8P16_BUCKET(0, 0, 0);
+        RUN_I8P16_BUCKET(1, 0, 1);
+        RUN_I8P16_BUCKET(2, 0, 2);
+        RUN_I8P16_BUCKET(3, 0, 3);
+        RUN_I8P16_BUCKET(4, 0, 4);
+        RUN_I8P16_BUCKET(5, 0, 5);
+        RUN_I8P16_BUCKET(6, 1, 0);
+        RUN_I8P16_BUCKET(7, 1, 1);
+        RUN_I8P16_BUCKET(8, 1, 2);
+        RUN_I8P16_BUCKET(9, 1, 3);
+        RUN_I8P16_BUCKET(10, 1, 4);
+        RUN_I8P16_BUCKET(11, 1, 5);
+        RUN_I8P16_BUCKET(12, 2, 0);
+        RUN_I8P16_BUCKET(13, 2, 1);
+        RUN_I8P16_BUCKET(14, 2, 2);
+        RUN_I8P16_BUCKET(15, 2, 3);
+        RUN_I8P16_BUCKET(16, 2, 4);
+        RUN_I8P16_BUCKET(17, 2, 5);
+        RUN_I8P16_BUCKET(18, 3, 0);
+        RUN_I8P16_BUCKET(19, 3, 1);
+        RUN_I8P16_BUCKET(20, 3, 2);
+        RUN_I8P16_BUCKET(21, 3, 3);
+        RUN_I8P16_BUCKET(22, 3, 4);
+        RUN_I8P16_BUCKET(23, 3, 5);
+        RUN_I8P16_BUCKET(24, 4, 0);
+        RUN_I8P16_BUCKET(25, 4, 1);
+        RUN_I8P16_BUCKET(26, 4, 2);
+        RUN_I8P16_BUCKET(27, 4, 3);
+        RUN_I8P16_BUCKET(28, 4, 4);
+        RUN_I8P16_BUCKET(29, 4, 5);
+        RUN_I8P16_BUCKET(30, 5, 0);
+        RUN_I8P16_BUCKET(31, 5, 1);
+        RUN_I8P16_BUCKET(32, 5, 2);
+        RUN_I8P16_BUCKET(33, 5, 3);
+        RUN_I8P16_BUCKET(34, 5, 4);
+        RUN_I8P16_BUCKET(35, 5, 5);
+#undef RUN_I8P16_BUCKET
 #undef ADD_I8P16_PAIR2
 #undef ADD_I8P16_ROW16_AT
 #undef ADD_I8P16_PACK
-        }
       }
 
 #define STORE_I8P16_ACC(P, R) \

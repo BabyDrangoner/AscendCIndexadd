@@ -573,3 +573,12 @@ Conclusion: full pass and 81.568us faster than v147. Pack16 continues the scalar
 - Verification: Docker build passed; top-level host/kernel source matches the zip, and the run-package embedded `index_add.cpp` matches local `op_kernel/index_add.cpp`.
 - Submit: 2026-07-02 09:54:54 CST, workId `IndexAdd_v191_pack16_paircode.zip`.
 - Official result: pending; as of 09:55 CST the ranking row still pointed to v221's `2026/07/02 09:38:13` result (`prof_sum=1818771.568us`).
+
+## v223 pack16-pairbucket
+
+- Change: build on v191 and replace the hot-loop `switch(code)` with two 512-row tiles of 36 pair-code buckets. Each bucket stores local pair positions, then the Pack16 loop runs fixed code-specific bucket loops.
+- Rationale: v191 removes repeated pair-code decoding but still pays a 36-way branch per two source rows. This candidate tests whether scalar branch dispatch, rather than packed load/add throughput, is still a meaningful part of Case4.
+- Package: `IndexAdd_v223_pack16_pairbucket.zip`
+- SHA256: `729a5e9ba179d97abf5fb1baef2cde9b39d76681bb6309afaede651fc2183b88`
+- Verification: Docker build passed; top-level kernel source and run-package embedded `index_add.cpp` match (`7fcab542d34066f84f3d003f4d0f6b67937fc17ab12eafb450886aeb1d419e58`).
+- Submit: pending.
