@@ -337,6 +337,15 @@ Case5: Run failed
 - Verification: Docker build passed; zip top-level host/kernel sources match local source; run-package embedded `op_kernel/index_add.cpp` matches local source (`2bcdb689bda412c2602a75312c8ed9e04b8f45c06204263dc7c1f70bc16305d1`).
 - Submit: pending; build and submit only after package verification.
 
+## v229 kfc-b1-m1024-workspace-pad
+
+- Change: keep v228's workspace-reserved KFC B1 path, but increase the dense Case4 Matmul M tile from 512 to 1024 rows.
+- Rationale: for the inferred `outer=8192` hotcase, M=1024 creates exactly `8 outer_groups * 3 N_tiles = 24` work items, matching the 24-block KFC cap. This minimizes command count while preserving full block occupancy.
+- Package: `IndexAdd_v229_kfc_b1_m1024_workspace_pad.zip`
+- SHA256: `41a7f138bfb08ac988d3dd3ec123d266ed079fbc9ccb914639c9dd38929303dc`
+- Verification: Docker build passed; zip top-level host/kernel sources match local source; run-package embedded `op_kernel/index_add.cpp` matches local source (`3513b266afaaa581005b463c556f5f52de2418db8cdd0832953c23484845a8d3`).
+- Submit: pending; build and submit only after package verification.
+
 ## v226 kfc-b1-m128-workspace-pad
 
 - Change: keep v225's workspace-reserved KFC B1 path, but increase the dense Case4 Matmul M tile from 64 to 128 rows.
